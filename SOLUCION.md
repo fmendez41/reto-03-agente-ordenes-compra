@@ -10,7 +10,7 @@ El navegador habla con un solo proceso Bun (`src/server.ts`) que sirve `web/dist
 
 La interfaz es React con Vite en `web/`, compilada a `web/dist`. Es una capa de presentación: no repite ninguna regla, solo consume `GET /api/casos`, `GET /api/casos/:caso` y `POST /api/chat`. El servidor deriva la bandeja y el detalle de `resumenCasos` y `detalleCaso` en `src/core/flujo.ts`, de modo que la pantalla y el agente leen la misma verdad.
 
-`modulo/tools/oc.ts` es la implementación que usa la aplicación: `src/core` la reexporta. No importa el servidor, el ciclo ni el proveedor. Copiar solo `modulo/` a otro directorio importa las herramientas; `zod` y `pdf-lib` siguen siendo dependencias de paquete. Una prueba hace esa copia y otra compara el cuerpo del prompt y del conocimiento con las copias del módulo, y recorre el grafo para confirmar que ningún import relativo sale de la carpeta.
+`modulo/tools/oc.ts` es la implementación que usa la aplicación: `src/core` la reexporta. No importa el servidor, el ciclo ni el proveedor. `modulo/package.json` declara `zod` y `pdf-lib`, así que copiar la carpeta e instalar ahí no depende de las dependencias del repositorio. Una prueba hace esa copia, instala y ejecuta `leer_paquete` sobre `sol-001`. Otra compara el cuerpo del prompt y del conocimiento con las copias del módulo, y recorre el grafo para confirmar que ningún import relativo sale de la carpeta.
 
 ## 3. Ciclo del agente
 
@@ -107,7 +107,7 @@ En los fixtures hay un caso retroactivo de seis. Es un caso de prueba, no una me
 | Lectura con lector de pantalla | Hecho en lo esencial | Recorrido completo con NVDA o JAWS y orden de foco revisado tras cada confirmación. |
 | Despliegue público | Hecho en Render | Un plan con disco persistente y sin suspensión si esto deja de ser una demo. |
 | `oc_leer_excel` | No hecho | Solo si el canal real sigue siendo xlsx. |
-| Bonus `modulo/` | Hecho | La implementación vive en `modulo/` y `src/core` la reexporta, así que no hay dos copias. Copiar solo la carpeta importa las herramientas. |
+| Bonus `modulo/` | Hecho | La implementación vive en `modulo/` y `src/core` la reexporta, así que no hay dos copias. La carpeta declara `zod` y `pdf-lib`. Copiarla, instalar y ejecutar `leer_paquete` funciona sin el resto del repositorio. |
 
 ## 11. Uso de IA
 
