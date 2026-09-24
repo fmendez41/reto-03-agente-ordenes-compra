@@ -42,7 +42,7 @@ bun demo.ts
 
 Para ser determinista, el demo arranca borrando lo que él mismo produce dentro de `out/`, pero respeta `out/sessions/` y `out/confirmaciones.json` para no tumbar la conversación de quien esté usando la aplicación. Con `DEMO_OUT_DIR=out-demo bun demo.ts` escribe en otra carpeta y no toca `out/` en absoluto.
 
-Las 61 pruebas cubren las diez reglas, los parsers, los límites de seguridad, el protocolo de confirmación, la construcción del payload, el recorrido completo, la frontera de módulos, la persistencia del historial entre turnos, el renderizado de markdown y la bandeja con su capa de formato.
+Las 64 pruebas cubren las diez reglas, los parsers, los límites de seguridad, el protocolo de confirmación, la construcción del payload, el recorrido completo, la frontera de módulos, la persistencia del historial entre turnos, el renderizado de markdown y la bandeja con su capa de formato.
 
 ## Variables
 
@@ -61,7 +61,7 @@ Las 61 pruebas cubren las diez reglas, los parsers, los límites de seguridad, e
 
 ## API
 
-- `POST /api/chat` con `{ sessionId, message, actionId? }` devuelve `{ reply, toolCalls, needsConfirmation, confirmacion }`. La confirmación incluye `vence_en` para que la interfaz avise antes de que caduque.
+- `POST /api/chat` con `{ sessionId, caso, message, actionId? }` devuelve `{ reply, toolCalls, needsConfirmation, confirmacion }`. La confirmación incluye `vence_en` para que la interfaz avise antes de que caduque. `caso` es el que la analista tiene abierto: el servidor lo anexa al turno como contexto para que "procesa este caso" se resuelva sin que el agente adivine.
 - `GET /api/casos` devuelve la bandeja: una fila por caso con estado, proveedor, valor, marca de retroactiva y número de orden si ya existe.
 - `GET /api/casos/:caso` devuelve el detalle: paquete, evaluación de las diez reglas, orden propuesta y catálogos para traducir los códigos.
 - `GET /api/casos/:caso/evidencia` devuelve el texto canónico de la aprobación y su SHA-256, reconstruido desde los fixtures. No sirve archivos de `out/`.

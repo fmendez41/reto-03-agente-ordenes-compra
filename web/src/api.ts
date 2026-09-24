@@ -39,6 +39,9 @@ export async function traerDetalle(caso: string): Promise<DetalleCaso> {
 
 export async function enviarMensaje(entrada: {
   sessionId: string
+  // El caso abierto viaja aparte del texto para que el agente sepa a qué se refiere
+  // la analista cuando escribe "este caso" sin nombrarlo.
+  caso: string
   message: string
   actionId?: string | null
 }): Promise<RespuestaChat> {

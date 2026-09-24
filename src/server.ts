@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto"
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs"
 import path from "node:path"
+import { contextoDelCaso } from "./agent/contexto.ts"
 import { cargarPrompt, cerrarTurno, ejecutarTurno, MAX_HISTORIAL_CARACTERES, type VistaLlamada } from "./agent/loop.ts"
 import { leerAccion, validarAccion } from "./core/confirmacion.ts"
 import { detalleCaso, resumenCasos } from "./core/flujo.ts"
@@ -114,9 +115,9 @@ Bun.serve({
 console.log(`Agente de órdenes de compra en http://localhost:${puerto}`)
 
 async function chat(request: Request): Promise<Response> {
-  let cuerpo: { sessionId?: string; message?: string; actionId?: string }
+  let cuerpo: { sessionId?: string; message?: string; actionId?: string; caso?: string }
   try {
-    cuerpo = (await request.json()) as { sessionId?: string; message?: string; actionId?: string }
+    cuerpo = (await request.json()) as { sessionId?: string; message?: string; actionId?: string; caso?: string }
   } catch {
     return Response.json({ ok: false, error: "El mensaje no es JSON." }, { status: 400 })
   }
@@ -139,16 +140,21 @@ async function chat(request: Request): Promise<Response> {
     turno: sesion.turno,
     intentos: new Map(),
   }
-  let aviso = ""
+  const avisos: string[] = []
+  const contexto = contextoDelCaso(cuerpo.caso)
+  if (!contexto.ok) {
+    return Response.json({ ok: false, error: contexto.error, sessionId: sesion.id }, { status: 400 })
+  }
+  if (contexto.aviso) avisos.push(contexto.aviso)
   if (cuerpo.actionId) {
     const preparada = await prepararConfirmacion(cuerpo.actionId, sesion, ctx)
     if (!preparada.ok) {
       return Response.json({ ok: false, error: preparada.error, sessionId: sesion.id }, { status: 400 })
     }
-    aviso = preparada.aviso
+    avisos.push(preparada.aviso)
     ctx.actionId = cuerpo.actionId
   }
-  sesion.mensajes.push({ role: "user", content: aviso ? `${message}\n${aviso}` : message })
+  sesion.mensajes.push({ role: "user", content: avisos.length ? `${message}\n${avisos.join("\n")}` : message })
   const resultado = await ejecutarTurno({
     directory,
     adapter: adaptador,

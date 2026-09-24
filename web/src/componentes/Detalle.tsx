@@ -43,7 +43,7 @@ export function Detalle({ caso, alVolver, alCambiar }: { caso: string; alVolver:
       setPensando(true)
       setConfirmacion(null)
       try {
-        const respuesta = await enviarMensaje({ sessionId: sesion.current, message: texto, actionId })
+        const respuesta = await enviarMensaje({ sessionId: sesion.current, caso, message: texto, actionId })
         sesion.current = respuesta.sessionId
         localStorage.setItem(claveSesion(caso), respuesta.sessionId)
         setMensajes((previos) => [
