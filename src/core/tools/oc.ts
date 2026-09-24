@@ -147,6 +147,28 @@ export const construir_payload: Definicion = {
   },
 }
 
+/**
+ * El .txt es la evidencia P0: es el que se firma con sha256 y el que la API expone.
+ * El PDF es una comodidad para el analista, así que un fallo suyo no puede invalidar
+ * una evidencia que ya quedó escrita y firmada.
+ */
+async function escribirPdfSiSePuede(
+  ubicacion: Ubicacion,
+  caso: string,
+): Promise<{ ruta: string | null; aviso: string | null }> {
+  try {
+    const { escribirEvidenciaPdf } = await import("../pdf.ts")
+    const pdf = await escribirEvidenciaPdf(ubicacion, caso)
+    if (pdf.ok) return { ruta: pdf.ruta, aviso: null }
+    return { ruta: null, aviso: `La evidencia en texto quedó firmada, pero el PDF no se pudo generar: ${pdf.error}` }
+  } catch {
+    return {
+      ruta: null,
+      aviso: "La evidencia en texto quedó firmada, pero el PDF no se pudo generar por un fallo del generador.",
+    }
+  }
+}
+
 export const generar_evidencia: Definicion = {
   description: "Escribe la evidencia de aprobación y devuelve su ruta y sha256.",
   args: {
@@ -158,10 +180,8 @@ export const generar_evidencia: Definicion = {
       const caso = String(args.caso)
       const escrito = escribirEvidenciaTxt(ubicacion, caso)
       if (!escrito.ok) return fallo(escrito.error)
-      const { escribirEvidenciaPdf } = await import("../pdf.ts")
-      const pdf = await escribirEvidenciaPdf(ubicacion, caso)
-      if (!pdf.ok) return fallo(pdf.error)
-      return ok({ ruta: escrito.ruta, sha256: escrito.sha256, pdf: pdf.ruta })
+      const pdf = await escribirPdfSiSePuede(ubicacion, caso)
+      return ok({ ruta: escrito.ruta, sha256: escrito.sha256, pdf: pdf.ruta, aviso: pdf.aviso })
     })
   },
 }
@@ -242,11 +262,25 @@ export const crear: Definicion = {
         validacion.data.confirmaciones.length > 0 ? "analista" : null,
       )
       if (!final.ok) return fallo(final.error)
+      // HU-4: ninguna orden puede existir en SAP sin su evidencia en disco. Se escribe
+      // antes de crearla, no después, para que un fallo aquí aborte la creación en vez
+      // de dejar una OC sin respaldo. La escritura es idempotente.
+      const evidencia = escribirEvidenciaTxt(ubicacion, caso)
+      if (!evidencia.ok) {
+        intento.resultado = "ERROR"
+        return fallo(`No creo la OC sin evidencia de aprobación. ${evidencia.error}`)
+      }
+      const pdf = await escribirPdfSiSePuede(ubicacion, caso)
       const creada = await sap.crearOrden(final.data.orden)
       if (ctx.actionId) consumirAccion(ubicacion, ctx.actionId)
       intento.numeroOc = creada.numero_oc
       intento.resultado = "CREADA"
-      return ok({ numero_oc: creada.numero_oc, fecha: creada.fecha, idempotente: false })
+      return ok({
+        numero_oc: creada.numero_oc,
+        fecha: creada.fecha,
+        idempotente: false,
+        evidencia: { ruta: evidencia.ruta, sha256: evidencia.sha256, pdf: pdf.ruta, aviso: pdf.aviso },
+      })
     })
   },
 }
