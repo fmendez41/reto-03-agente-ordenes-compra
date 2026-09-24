@@ -70,6 +70,25 @@ describe("paquete", () => {
     }
     limpiar()
   })
+
+  test("un caso que no existe y un caso al que le falta la solicitud dan mensajes distintos", () => {
+    const { ubicacion, limpiar } = copiaFixtures()
+    try {
+      const inexistente = leerPaquete(ubicacion, "sol-999")
+      expect(inexistente.ok).toBe(false)
+      if (inexistente.ok) throw new Error("debería fallar")
+      expect(inexistente.error).toContain("No existe el caso sol-999")
+
+      rmSync(path.join(ubicacion.fixturesDir, "solicitudes/sol-001/solicitud.json"))
+      const sinSolicitud = leerPaquete(ubicacion, "sol-001")
+      expect(sinSolicitud.ok).toBe(true)
+      if (!sinSolicitud.ok) throw new Error(sinSolicitud.error)
+      expect(sinSolicitud.data.solicitud).toBeNull()
+      expect(sinSolicitud.data.ausentes).toContain("solicitud")
+    } finally {
+      limpiar()
+    }
+  })
 })
 
 function writeRoto(fixturesDir: string): void {

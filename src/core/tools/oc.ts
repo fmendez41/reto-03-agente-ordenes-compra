@@ -48,11 +48,28 @@ function intentoDe(ctx: Contexto, caso: string): Intento {
   return creado
 }
 
-async function envolver(trabajo: () => Promise<string>): Promise<string> {
+/**
+ * Un fallo inesperado tiene que decir cuál fue, o el agente repite el intento a ciegas
+ * y la analista no sabe si el problema es del documento o del sistema. La causa se
+ * sanea antes de salir: nunca debe viajar una clave ni la ruta absoluta del servidor.
+ */
+function causaLegible(error: unknown): string {
+  const texto = error instanceof Error ? error.message : String(error)
+  return texto
+    .replace(/sk-[A-Za-z0-9_-]{8,}/g, "[redactado]")
+    .replace(/Bearer\s+\S+/gi, "Bearer [redactado]")
+    .replace(/[A-Za-z]:[\\/][^\s"']+/g, "[ruta del servidor]")
+    .replace(/\/(?:home|Users|var|tmp|app)\/[^\s"']+/g, "[ruta del servidor]")
+    .slice(0, 300)
+}
+
+async function envolver(nombre: string, trabajo: () => Promise<string>): Promise<string> {
   try {
     return await trabajo()
-  } catch {
-    return fallo("No pude completar la operación. Revisa el paquete y vuelve a intentar.")
+  } catch (error) {
+    return fallo(
+      `${nombre} falló por un error inesperado del sistema, no por el contenido del caso: ${causaLegible(error)}. No se creó ni modificó nada.`,
+    )
   }
 }
 
@@ -62,7 +79,7 @@ export const leer_paquete: Definicion = {
     caso: z.string().describe("Carpeta del caso en fixtures/reto-03/solicitudes/, por ejemplo sol-001"),
   },
   async execute(args, ctx) {
-    return envolver(async () => {
+    return envolver("oc_leer_paquete", async () => {
       const caso = String(args.caso)
       const paquete = leerPaquete(ubicacionDe(ctx), caso)
       if (!paquete.ok) {
@@ -82,7 +99,7 @@ export const validar: Definicion = {
     paquete: z.unknown().describe("Paquete devuelto por leer_paquete; el servidor vuelve a leer el disco"),
   },
   async execute(args, ctx) {
-    return envolver(async () => {
+    return envolver("oc_validar", async () => {
       const caso = String(args.caso)
       const ubicacion = ubicacionDe(ctx)
       const paquete = leerPaquete(ubicacion, caso)
@@ -129,7 +146,7 @@ export const construir_payload: Definicion = {
     derivados: z.unknown().describe("Ignorado: los derivados se recalculan desde los maestros"),
   },
   async execute(args, ctx) {
-    return envolver(async () => {
+    return envolver("oc_construir_payload", async () => {
       const caso = String(args.caso)
       const ubicacion = ubicacionDe(ctx)
       const paquete = leerPaquete(ubicacion, caso)
@@ -175,7 +192,7 @@ export const generar_evidencia: Definicion = {
     caso: z.string().describe("Carpeta del caso"),
   },
   async execute(args, ctx) {
-    return envolver(async () => {
+    return envolver("oc_generar_evidencia", async () => {
       const ubicacion = ubicacionDe(ctx)
       const caso = String(args.caso)
       const escrito = escribirEvidenciaTxt(ubicacion, caso)
@@ -194,7 +211,7 @@ export const crear: Definicion = {
     confirmado: z.boolean().optional().describe("No autoriza la compra. La autorización la inyecta el servidor."),
   },
   async execute(args, ctx) {
-    return envolver(async () => {
+    return envolver("oc_crear", async () => {
       const caso = String(args.caso)
       const ubicacion = ubicacionDe(ctx)
       const paquete = leerPaquete(ubicacion, caso)

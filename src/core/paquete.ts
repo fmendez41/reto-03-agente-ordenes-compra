@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs"
+import { existsSync, readdirSync, readFileSync } from "node:fs"
 import path from "node:path"
 import { z } from "zod"
 import { parsearCotizacion, parsearFactura } from "./parsers.ts"
@@ -52,6 +52,17 @@ function leerTexto(archivo: string): string | null {
   return readFileSync(archivo, "utf8")
 }
 
+function casosDisponibles(ubicacion: Ubicacion): string[] {
+  try {
+    return readdirSync(path.join(ubicacion.fixturesDir, "solicitudes"), { withFileTypes: true })
+      .filter((entrada) => entrada.isDirectory() && /^sol-\d{3}$/.test(entrada.name))
+      .map((entrada) => entrada.name)
+      .sort()
+  } catch {
+    return []
+  }
+}
+
 export function leerPaquete(
   ubicacion: Ubicacion,
   caso: string,
@@ -59,6 +70,18 @@ export function leerPaquete(
   const resuelto = resolverCaso(ubicacion, caso)
   if (!resuelto.ok) return resuelto
   const dir = resuelto.dir
+  // Sin esta comprobación un caso inexistente se confundía con un caso real al que
+  // le falta el Excel, y el mensaje mandaba a la analista a pedir un documento que
+  // nadie podía enviar porque el expediente entero no existe.
+  if (!existsSync(dir)) {
+    const disponibles = casosDisponibles(ubicacion)
+    return {
+      ok: false,
+      error: disponibles.length
+        ? `No existe el caso ${caso}. Los casos disponibles son: ${disponibles.join(", ")}.`
+        : `No existe el caso ${caso} y no hay ninguna solicitud cargada en el sistema.`,
+    }
+  }
   const ausentes: string[] = []
 
   const correoTexto = leerTexto(path.join(dir, "correo.json"))

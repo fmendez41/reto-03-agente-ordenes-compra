@@ -42,9 +42,13 @@ describe("bandeja", () => {
     expect(resultado.data.numero_oc).toBeNull()
   })
 
-  test("un caso inventado no se lee", async () => {
+  test("un caso inventado dice que no existe, en vez de pedir un Excel que nadie puede enviar", async () => {
     const resultado = await detalleCaso(ubicacion, "sol-999")
     expect(resultado.ok).toBe(false)
+    if (resultado.ok) throw new Error("debería fallar")
+    expect(resultado.error).toContain("No existe el caso sol-999")
+    expect(resultado.error).toContain("sol-001")
+    expect(resultado.error).not.toContain("Excel")
   })
 })
 
