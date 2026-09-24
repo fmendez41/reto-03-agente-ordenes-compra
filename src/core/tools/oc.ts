@@ -228,7 +228,7 @@ export const crear: Definicion = {
         intento.solicitudId = solicitudId
         intento.numeroOc = existente.numero_oc
         intento.resultado = "IDEMPOTENTE"
-        return ok({ numero_oc: existente.numero_oc, fecha: null, idempotente: true })
+        return ok({ numero_oc: existente.numero_oc, fecha: existente.fecha, idempotente: true })
       }
       const validacion = validarCaso(ubicacion, paquete.data)
       if (!validacion.ok) return fallo(validacion.error)

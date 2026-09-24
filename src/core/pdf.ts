@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from "node:fs"
-import path from "node:path"
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib"
 import { evidenciaDeCaso } from "./evidencia.ts"
+import { resolverSalida } from "./rutas.ts"
 import type { Ubicacion } from "./types.ts"
 
 export async function escribirEvidenciaPdf(
@@ -23,11 +23,11 @@ export async function escribirEvidenciaPdf(
     pagina.drawText(linea, { x: 48, y, size: 11, font: fuente, color: rgb(0.1, 0.1, 0.1) })
     y -= 16
   }
-  const dir = path.join(ubicacion.outDir, caso)
-  mkdirSync(dir, { recursive: true })
-  const ruta = path.join(dir, "aprobacion.pdf")
-  writeFileSync(ruta, await pdf.save())
-  return { ok: true, ruta }
+  const destino = resolverSalida(ubicacion, caso, "aprobacion.pdf")
+  if (!destino.ok) return destino
+  mkdirSync(destino.dir, { recursive: true })
+  writeFileSync(destino.archivo, await pdf.save())
+  return { ok: true, ruta: destino.archivo }
 }
 
 function envolver(texto: string, ancho: number): string[] {

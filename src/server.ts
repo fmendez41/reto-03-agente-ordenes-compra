@@ -101,6 +101,11 @@ Bun.serve({
     if (request.method === "POST" && url.pathname === "/api/chat") {
       return chat(request)
     }
+    // Una ruta /api/ desconocida devolvía 200 con el HTML de la interfaz, así que un
+    // cliente que se equivocara de ruta recibía una página en vez de un error.
+    if (url.pathname.startsWith("/api/")) {
+      return Response.json({ ok: false, error: `No existe la ruta ${request.method} ${url.pathname}.` }, { status: 404 })
+    }
     if (request.method === "GET") return estatico(url.pathname)
     return new Response("No encontrado", { status: 404 })
   },
@@ -138,7 +143,7 @@ async function chat(request: Request): Promise<Response> {
   if (cuerpo.actionId) {
     const preparada = await prepararConfirmacion(cuerpo.actionId, sesion, ctx)
     if (!preparada.ok) {
-      return Response.json({ ok: false, error: preparada.error, sessionId: sesion.id })
+      return Response.json({ ok: false, error: preparada.error, sessionId: sesion.id }, { status: 400 })
     }
     aviso = preparada.aviso
     ctx.actionId = cuerpo.actionId

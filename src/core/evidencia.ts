@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto"
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import path from "node:path"
-import { resolverCaso } from "./rutas.ts"
+import { resolverCaso, resolverSalida } from "./rutas.ts"
 import type { Ubicacion } from "./types.ts"
 
 export function contenidoCanonico(aprobacion: {
@@ -64,10 +64,10 @@ export function escribirEvidenciaTxt(
 ): { ok: true; ruta: string; sha256: string } | { ok: false; error: string } {
   const evidencia = evidenciaDeCaso(ubicacion, caso)
   if (!evidencia.ok) return evidencia
-  const dir = path.join(ubicacion.outDir, caso)
-  mkdirSync(dir, { recursive: true })
-  const archivo = path.join(dir, "aprobacion.txt")
+  const destino = resolverSalida(ubicacion, caso, "aprobacion.txt")
+  if (!destino.ok) return destino
+  mkdirSync(destino.dir, { recursive: true })
   const cuerpo = `${evidencia.canonico}\n\nsha256: ${evidencia.sha256}\n`
-  writeFileSync(archivo, cuerpo, "utf8")
-  return { ok: true, ruta: archivo, sha256: evidencia.sha256 }
+  writeFileSync(destino.archivo, cuerpo, "utf8")
+  return { ok: true, ruta: destino.archivo, sha256: evidencia.sha256 }
 }

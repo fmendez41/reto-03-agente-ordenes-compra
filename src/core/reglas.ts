@@ -205,6 +205,17 @@ export function evaluarReglas(paquete: Paquete, maestros: Maestros): Validacion 
         "Corrige el monto de la solicitud con el solicitante antes de seguir.",
       ),
     )
+  } else if (paquete.cotizacion.moneda !== solicitud.moneda) {
+    // Comparar 25.000.000 COP con 25.000.000 USD daría una diferencia del 0 %, que es
+    // justo el peor resultado posible: el control pasaría sin haber comprobado nada.
+    evaluaciones.push(
+      regla(
+        "RC5",
+        "confirma",
+        `La solicitud está en ${solicitud.moneda} y la cotización en ${paquete.cotizacion.moneda}, así que los totales no son comparables: ${formatoMonto(solicitud.valor_total, solicitud.moneda)} frente a ${formatoMonto(paquete.cotizacion.total, paquete.cotizacion.moneda)}.`,
+        "Aclara en qué moneda se compra antes de crear la orden. El sistema no convierte entre monedas.",
+      ),
+    )
   } else {
     const diferencia = Math.abs(paquete.cotizacion.total - solicitud.valor_total) / solicitud.valor_total
     if (diferencia > 0.02) {

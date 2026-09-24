@@ -1,14 +1,11 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs"
 import path from "node:path"
+import type { SapAdapter } from "../sap/adapter.ts"
 import { cargarMaestros } from "./maestros.ts"
 import { normalizarNit } from "./texto.ts"
 import type { OrdenCompra, Ubicacion } from "./types.ts"
 
-export type SapAdapter = {
-  consultarProveedor(nit: string): Promise<{ codigo_sap: string; activo: boolean } | null>
-  crearOrden(orden: OrdenCompra): Promise<{ numero_oc: string; fecha: string }>
-  buscarOrdenPorReferencia(solicitud_id: string): Promise<{ numero_oc: string } | null>
-}
+export type { SapAdapter }
 
 type OrdenGuardada = {
   numero_oc: string
@@ -42,7 +39,7 @@ export function crearSapArchivo(ubicacion: Ubicacion): SapAdapter {
     },
     async buscarOrdenPorReferencia(solicitudId) {
       const encontrada = leerOrdenes(ubicacion).find((item) => item.orden.referencia.solicitud_id === solicitudId)
-      return encontrada ? { numero_oc: encontrada.numero_oc } : null
+      return encontrada ? { numero_oc: encontrada.numero_oc, fecha: encontrada.fecha } : null
     },
     async crearOrden(orden) {
       const existentes = leerOrdenes(ubicacion)

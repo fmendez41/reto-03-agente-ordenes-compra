@@ -3,6 +3,7 @@ import { mkdirSync, writeFileSync } from "node:fs"
 import path from "node:path"
 import { z } from "zod"
 import { evidenciaDeCaso } from "./evidencia.ts"
+import { resolverSalida } from "./rutas.ts"
 import { truncarDescripcion } from "./unidad.ts"
 import type { OrdenCompra, Paquete, TrazaCampo, Ubicacion, Validacion } from "./types.ts"
 
@@ -161,9 +162,9 @@ export function construirOrden(
 }
 
 export function guardarTrazabilidad(ubicacion: Ubicacion, caso: string, trazas: TrazaCampo[]): string {
-  const dir = path.join(ubicacion.outDir, caso)
-  mkdirSync(dir, { recursive: true })
-  const archivo = path.join(dir, "trazabilidad.json")
-  writeFileSync(archivo, JSON.stringify(trazas, null, 2), "utf8")
-  return archivo
+  const destino = resolverSalida(ubicacion, caso, "trazabilidad.json")
+  if (!destino.ok) throw new Error(destino.error)
+  mkdirSync(destino.dir, { recursive: true })
+  writeFileSync(destino.archivo, JSON.stringify(trazas, null, 2), "utf8")
+  return destino.archivo
 }
