@@ -1,3 +1,5 @@
+export {}
+
 const puerto = process.env.PORT ?? "3000"
 const subdominio = process.env.TUNNEL_SUBDOMAIN ?? "oc-periferia-reto03"
 

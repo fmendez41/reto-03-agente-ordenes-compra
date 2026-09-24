@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto"
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs"
 import path from "node:path"
-import { cargarPrompt, cerrarTurno, ejecutarTurno, type VistaLlamada } from "./agent/loop.ts"
+import { cargarPrompt, cerrarTurno, ejecutarTurno, MAX_HISTORIAL_CARACTERES, type VistaLlamada } from "./agent/loop.ts"
 import { leerAccion, validarAccion } from "./core/confirmacion.ts"
 import { detalleCaso, resumenCasos } from "./core/flujo.ts"
 import { evidenciaDeCaso } from "./core/evidencia.ts"
@@ -18,6 +18,7 @@ const directory = path.resolve(import.meta.dir, "..")
 const puerto = Number(process.env.PORT ?? 3000)
 const maxIteraciones = Number(process.env.MAX_TOOL_ITERATIONS ?? 25)
 const maxTokens = Number(process.env.MAX_SESSION_TOKENS ?? 100000)
+const maxHistorial = Number(process.env.MAX_HISTORY_CHARS ?? MAX_HISTORIAL_CARACTERES)
 const maxMensaje = Number(process.env.MAX_MESSAGE_CHARS ?? 8000)
 const tokenAcceso = process.env.APP_ACCESS_TOKEN ?? ""
 const modelo = process.env.LLM_MODEL ?? "gpt-4.1-mini"
@@ -149,8 +150,8 @@ async function chat(request: Request): Promise<Response> {
     historial: sesion.mensajes,
     ctx,
     maxIteraciones,
+    maxHistorialCaracteres: maxHistorial,
   })
-  sesion.mensajes.push({ role: "assistant", content: resultado.reply })
   sesion.tokens += resultado.tokens || Math.ceil(message.length / 4)
   const creada = resultado.toolCalls.some((llamada) => llamada.name === "oc_crear" && llamada.ok)
   cerrarTurno(ctx, creada)

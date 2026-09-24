@@ -46,27 +46,35 @@ export function esquemaHerramientas(): HerramientaJson[] {
   }))
 }
 
+export const MAX_HISTORIAL_CARACTERES = 120000
+
 export async function ejecutarTurno(opciones: {
   directory: string
   adapter: LlmAdapter
   historial: MensajeModelo[]
   ctx: Contexto
   maxIteraciones: number
+  maxHistorialCaracteres?: number
 }): Promise<{ reply: string; toolCalls: VistaLlamada[]; tokens: number }> {
-  const mensajes = [...opciones.historial]
+  const mensajes = opciones.historial
+  const tope = opciones.maxHistorialCaracteres ?? MAX_HISTORIAL_CARACTERES
   const vistas: VistaLlamada[] = []
   let tokens = 0
+  const cerrar = (reply: string) => {
+    mensajes.push({ role: "assistant", content: reply })
+    return { reply, toolCalls: vistas, tokens }
+  }
   for (let i = 0; i < opciones.maxIteraciones; i++) {
     let respuesta: Awaited<ReturnType<LlmAdapter["enviar"]>>
     try {
-      respuesta = await opciones.adapter.enviar(mensajes, esquemaHerramientas())
+      respuesta = await opciones.adapter.enviar(podarHistorial(mensajes, tope), esquemaHerramientas())
     } catch (error) {
       const texto = error instanceof Error ? error.message : "Fallo el proveedor."
-      return { reply: texto, toolCalls: vistas, tokens }
+      return cerrar(texto)
     }
     tokens += respuesta.tokens
     if (respuesta.toolCalls.length === 0) {
-      return { reply: respuesta.content ?? "No tengo una respuesta.", toolCalls: vistas, tokens }
+      return cerrar(respuesta.content ?? "No tengo una respuesta.")
     }
     mensajes.push({ role: "assistant", content: respuesta.content, tool_calls: respuesta.toolCalls })
     for (const llamada of respuesta.toolCalls) {
@@ -76,11 +84,38 @@ export async function ejecutarTurno(opciones: {
     }
   }
   const resumen = vistas.map((vista) => `${vista.titulo}: ${vista.resumen}`).join("\n")
-  return {
-    reply: `Llegué al tope de iteraciones. Esto obtuve:\n${resumen || "ninguna herramienta"}\nFalta cerrar el caso en un turno nuevo.`,
-    toolCalls: vistas,
-    tokens,
+  return cerrar(
+    `Llegué al tope de iteraciones. Esto obtuve:\n${resumen || "ninguna herramienta"}\nFalta cerrar el caso en un turno nuevo.`,
+  )
+}
+
+/**
+ * La sesión guarda el historial completo porque la sección 6.4 del PRD lo expone por API,
+ * pero al modelo se le manda solo la cola que cabe en el presupuesto. El corte nunca puede
+ * empezar en un mensaje `tool`: OpenAI rechaza un resultado de herramienta cuyo mensaje
+ * `assistant` con `tool_calls` quedó fuera de la ventana.
+ */
+export function podarHistorial(mensajes: MensajeModelo[], maxCaracteres: number): MensajeModelo[] {
+  if (mensajes.length === 0) return mensajes
+  const sistema = mensajes[0]?.role === "system" ? [mensajes[0]] : []
+  const resto = sistema.length > 0 ? mensajes.slice(1) : mensajes
+  const presupuesto = maxCaracteres - pesar(sistema)
+  let acumulado = 0
+  let corte = resto.length
+  for (let indice = resto.length - 1; indice >= 0; indice--) {
+    acumulado += pesar([resto[indice]!])
+    if (acumulado > presupuesto && indice < resto.length - 1) break
+    corte = indice
   }
+  while (corte > 0 && resto[corte]!.role === "tool") corte -= 1
+  if (corte === 0) return mensajes
+  return [...sistema, ...resto.slice(corte)]
+}
+
+function pesar(mensajes: MensajeModelo[]): number {
+  let total = 0
+  for (const mensaje of mensajes) total += JSON.stringify(mensaje).length
+  return total
 }
 
 async function ejecutarLlamada(
