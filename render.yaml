@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: agente-oc
+    runtime: docker
+    plan: free
+    healthCheckPath: /api/health
+    envVars:
+      - key: LLM_API_KEY
+        sync: false
+      - key: LLM_MODEL
+        value: gpt-4.1-mini
+      - key: APP_ACCESS_TOKEN
+        generateValue: true
+      - key: MAX_TOOL_ITERATIONS
+        value: "25"
+      - key: MAX_SESSION_TOKENS
+        value: "100000"

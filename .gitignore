@@ -1,0 +1,7 @@
+node_modules/
+out/
+out-test-tope/
+web/dist/
+.env
+*.log
+.DS_Store
