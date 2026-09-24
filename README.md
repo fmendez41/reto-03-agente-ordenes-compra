@@ -72,6 +72,12 @@ Cualquier otra ruta bajo `/api/` devuelve 404 con `{ error }`. El resto de rutas
 
 ## Despliegue
 
+El servicio público está en [https://agente-oc.onrender.com](https://agente-oc.onrender.com). El enlace con el token de acceso, que es el que hay que abrir, es:
+
+`https://agente-oc.onrender.com/?token=RbjdbO%2B1%2FyL925df7kA6qxHVWHMy0RMekCa9G5V29G8%3D`
+
+Ese token no es la clave del modelo. Sin él, la bandeja carga pero el chat y la API responden 401.
+
 Hay `Dockerfile` y `render.yaml`. El blueprint crea un servicio Docker con health check en `/api/health`, genera `APP_ACCESS_TOKEN` solo y deja `LLM_API_KEY` marcada como `sync: false`: hay que cargarla a mano en el panel del servicio. La clave nunca entra en la imagen ni en el repositorio.
 
 El `Dockerfile` instala las dependencias en su propia capa con `--frozen-lockfile` contra el `bun.lock` versionado, así que el build es reproducible y un cambio de código no reinstala nada.
