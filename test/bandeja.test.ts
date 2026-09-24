@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, test } from "bun:test"
 import { detalleCaso, listarCasos, resumenCasos } from "../src/core/flujo.ts"
-import { dinero, etiquetaEstado, etiquetaRegla, fuenteLegible, numero, unidad } from "../web/src/lib/formato.ts"
+import { dinero, etiquetaEstado, etiquetaRegla, fecha, fuenteLegible, numero, unidad } from "../web/src/lib/formato.ts"
 import { copiaFixtures } from "./ayuda.ts"
 
 const { ubicacion, limpiar } = copiaFixtures()
@@ -64,5 +64,19 @@ describe("formato para el analista", () => {
   test("un estado desconocido se muestra tal cual en vez de romperse", () => {
     expect(etiquetaEstado("OTRA_COSA")).toBe("OTRA_COSA")
     expect(unidad(null)).toBe("—")
+  })
+
+  test("la fecha no se corre un día al formatearse en zonas al oeste de UTC", () => {
+    const previa = process.env.TZ
+    process.env.TZ = "America/Bogota"
+    try {
+      expect(fecha("2026-08-10")).toBe("10 de agosto de 2026")
+      expect(fecha("2026-01-01")).toBe("1 de enero de 2026")
+      expect(fecha("2026-08-21T10:02:00-05:00")).toBe("21 de agosto de 2026")
+      expect(fecha(null)).toBe("—")
+      expect(fecha("no es fecha")).toBe("no es fecha")
+    } finally {
+      process.env.TZ = previa
+    }
   })
 })

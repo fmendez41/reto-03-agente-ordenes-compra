@@ -14,15 +14,23 @@ export function numero(valor: number | null | undefined): string {
   return new Intl.NumberFormat("es-CO").format(valor)
 }
 
+/**
+ * Las fechas del negocio son días de calendario, no instantes. Se construyen en UTC,
+ * así que hay que formatearlas en UTC: sin `timeZone` el navegador las pasa a la zona
+ * local y en Colombia (UTC-5) toda fecha se mostraba con un día menos.
+ */
 export function fecha(valor: string | null | undefined): string {
   if (!valor) return "—"
   const calendario = valor.slice(0, 10)
   const partes = calendario.split("-").map(Number)
   const [anio, mes, dia] = partes
   if (!anio || !mes || !dia) return valor
-  return new Intl.DateTimeFormat("es-CO", { day: "numeric", month: "long", year: "numeric" }).format(
-    new Date(Date.UTC(anio, mes - 1, dia)),
-  )
+  return new Intl.DateTimeFormat("es-CO", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(Date.UTC(anio, mes - 1, dia)))
 }
 
 export function porcentaje(valor: number): string {
