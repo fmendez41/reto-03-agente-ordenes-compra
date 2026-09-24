@@ -5,6 +5,7 @@ import { escribirEvidenciaTxt } from "../evidencia.ts"
 import { construirOrden, guardarTrazabilidad, hashPayload, ordenCompraSchema } from "../payload.ts"
 import { leerPaquete } from "../paquete.ts"
 import { validarCaso } from "../reglas.ts"
+import { redactar } from "../secreto.ts"
 import { ubicar } from "../rutas.ts"
 import { crearSapArchivo, excluirReferencia, leerOrdenes } from "../sap-archivo.ts"
 import type { OrdenCompra, Ubicacion } from "../types.ts"
@@ -55,9 +56,7 @@ function intentoDe(ctx: Contexto, caso: string): Intento {
  */
 function causaLegible(error: unknown): string {
   const texto = error instanceof Error ? error.message : String(error)
-  return texto
-    .replace(/sk-[A-Za-z0-9_-]{8,}/g, "[redactado]")
-    .replace(/Bearer\s+\S+/gi, "Bearer [redactado]")
+  return redactar(texto)
     .replace(/[A-Za-z]:[\\/][^\s"']+/g, "[ruta del servidor]")
     .replace(/\/(?:home|Users|var|tmp|app)\/[^\s"']+/g, "[ruta del servidor]")
     .slice(0, 300)

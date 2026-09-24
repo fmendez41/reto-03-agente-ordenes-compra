@@ -1,4 +1,5 @@
-import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs"
+import { escribirAtomico } from "./atomico.ts"
 import path from "node:path"
 import type { ResultadoControl, Ubicacion } from "./types.ts"
 
@@ -37,7 +38,7 @@ export function claveIntento(intento: Pick<Intento, "caso" | "sessionId" | "turn
 }
 
 export function celdaCsv(valor: string): string {
-  let texto = valor
+  let texto = valor.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "")
   if (/^[=+\-@\t\r]/.test(texto)) texto = `'${texto}`
   if (/[",\n]/.test(texto)) return `"${texto.replace(/"/g, '""')}"`
   return texto
@@ -69,11 +70,7 @@ export function flushIntento(ubicacion: Ubicacion, intento: Intento): void {
   }
   const archivo = path.join(ubicacion.outDir, "control.csv")
   if (!existsSync(archivo)) {
-    writeFileSync(
-      archivo,
-      "solicitud_id,resultado,numero_oc,retroactiva,bloqueos,confirmaciones,ts\n",
-      "utf8",
-    )
+    escribirAtomico(archivo, "solicitud_id,resultado,numero_oc,retroactiva,bloqueos,confirmaciones,ts\n")
   }
   const fila = [
     celdaCsv(intento.solicitudId),
@@ -86,6 +83,6 @@ export function flushIntento(ubicacion: Ubicacion, intento: Intento): void {
   ].join(",")
   appendFileSync(archivo, `${fila}\n`, "utf8")
   claves.add(clave)
-  writeFileSync(indicePath(ubicacion.outDir), JSON.stringify([...claves], null, 2), "utf8")
+  escribirAtomico(indicePath(ubicacion.outDir), JSON.stringify([...claves], null, 2))
   intento.flushed = true
 }

@@ -33,11 +33,20 @@ function archivo(ubicacion: Ubicacion): string {
 export function leerOrdenes(ubicacion: Ubicacion): OrdenGuardada[] {
   const ruta = archivo(ubicacion)
   if (!existsSync(ruta)) return []
-  return readFileSync(ruta, "utf8")
-    .split("\n")
-    .map((linea) => linea.trim())
-    .filter((linea) => linea.length > 0)
-    .map((linea) => JSON.parse(linea) as OrdenGuardada)
+  const lineas = readFileSync(ruta, "utf8").split("\n")
+  const ordenes: OrdenGuardada[] = []
+  for (let indice = 0; indice < lineas.length; indice++) {
+    const linea = lineas[indice]?.trim() ?? ""
+    if (!linea) continue
+    try {
+      ordenes.push(JSON.parse(linea) as OrdenGuardada)
+    } catch {
+      const ultima = indice === lineas.length - 1
+      if (ultima) continue
+      throw new Error("ordenes.jsonl tiene una línea corrupta en medio del archivo.")
+    }
+  }
+  return ordenes
 }
 
 export function crearSapArchivo(ubicacion: Ubicacion): SapAdapter {

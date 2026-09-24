@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto"
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { existsSync, readFileSync } from "node:fs"
+import { escribirAtomico } from "./atomico.ts"
 import path from "node:path"
 import { TTL_CONFIRMACION_MS, type AccionPendiente, type Ubicacion } from "./types.ts"
 
@@ -19,8 +20,7 @@ function leer(ubicacion: Ubicacion): AccionPendiente[] {
 }
 
 function guardar(ubicacion: Ubicacion, acciones: AccionPendiente[]): void {
-  mkdirSync(ubicacion.outDir, { recursive: true })
-  writeFileSync(archivo(ubicacion), JSON.stringify(acciones, null, 2), "utf8")
+  escribirAtomico(archivo(ubicacion), JSON.stringify(acciones, null, 2))
 }
 
 export function crearAccion(

@@ -1,3 +1,4 @@
+import { existsSync, realpathSync } from "node:fs"
 import path from "node:path"
 import type { Ubicacion } from "./types.ts"
 
@@ -14,11 +15,29 @@ export function ubicar(
   }
 }
 
-export function dentroDe(padre: string, candidato: string): boolean {
-  const base = path.resolve(padre)
-  const destino = path.resolve(candidato)
+function contenidoLogico(base: string, destino: string): boolean {
   const relativo = path.relative(base, destino)
   return relativo.length > 0 && !relativo.startsWith("..") && !path.isAbsolute(relativo)
+}
+
+/**
+ * Confina el destino a la raíz permitida. `startsWith` no basta: un hermano
+ * `dist-otro` pasaría, y un enlace que salga de la raíz también.
+ */
+export function dentroDe(padre: string, candidato: string): boolean {
+  const baseLogica = path.resolve(padre)
+  const destino = path.resolve(candidato)
+  if (!contenidoLogico(baseLogica, destino)) return false
+  try {
+    const base = existsSync(baseLogica) ? realpathSync(baseLogica) : baseLogica
+    if (existsSync(destino)) return contenidoLogico(base, realpathSync(destino))
+    const padreDestino = path.dirname(destino)
+    if (!existsSync(padreDestino)) return true
+    const realPadre = realpathSync(padreDestino)
+    return contenidoLogico(base, path.join(realPadre, path.basename(destino)))
+  } catch {
+    return false
+  }
 }
 
 export function resolverCaso(

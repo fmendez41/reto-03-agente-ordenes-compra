@@ -80,15 +80,21 @@ Las pruebas cubren las diez reglas, los parsers, el acceso con y sin token, el c
 
 Cualquier otra ruta bajo `/api/` devuelve 404 con `{ error }`. El resto de rutas sirven la interfaz.
 
+## Acceso a la demostración
+
+La aplicación pública está en [https://agente-oc.onrender.com](https://agente-oc.onrender.com).
+
+Abre este enlace. La clave compartida viaja una vez en la dirección y la página la retira de la barra:
+
+`https://agente-oc.onrender.com/?token=dvdJq_JyTivs-VyH9Lq9-gKhHARbpohF`
+
+Esa clave es `APP_ACCESS_TOKEN`. No es `LLM_API_KEY` y no abre el proveedor del modelo ni ningún sistema real. Sirve para que los evaluadores entren a una demo con datos ficticios. Quien la tiene comparte el mismo acceso: no hay usuario ni rol. Se revoca al cerrar la defensa de este reto.
+
+Sin ella, la página abre pero `/api/casos`, `/api/chat` y `/api/sessions` responden 401. Solo `/api/health` es público. En `NODE_ENV=production`, si `APP_ACCESS_TOKEN` no está definido, la API también responde 401.
+
 ## Despliegue
 
-El servicio público está en [https://agente-oc.onrender.com](https://agente-oc.onrender.com). El enlace con el token de acceso, que es el que hay que abrir, es:
-
-`https://agente-oc.onrender.com/?token=RbjdbO%2B1%2FyL925df7kA6qxHVWHMy0RMekCa9G5V29G8%3D`
-
-Ese token no es la clave del modelo. Sin él, la página abre pero `/api/casos`, `/api/chat` y `/api/sessions` responden 401. Solo `/api/health` es público, y no incluye la clave ni rutas internas.
-
-Hay `Dockerfile` y `render.yaml`. El blueprint crea un servicio Docker con health check en `/api/health`, genera `APP_ACCESS_TOKEN` solo y deja `LLM_API_KEY` marcada como `sync: false`: hay que cargarla a mano en el panel del servicio. La clave nunca entra en la imagen ni en el repositorio.
+Hay `Dockerfile` y `render.yaml`. El blueprint crea un servicio Docker con health check en `/api/health`. `LLM_API_KEY` va marcada como `sync: false`: solo se carga en el panel del servicio y no entra en la imagen ni en el repositorio. `APP_ACCESS_TOKEN` también se fija en el panel, con el mismo valor de la sección de acceso, para que un redespliegue no genere otra clave distinta.
 
 El `Dockerfile` instala las dependencias en su propia capa con `--frozen-lockfile` contra el `bun.lock` versionado, así que el build es reproducible y un cambio de código no reinstala nada.
 

@@ -126,3 +126,12 @@ Sobre la solución terminada corrí una auditoría contra el enunciado y una rev
 - SAP puede no estar disponible. Mitigación: el plan B de la sección 6, sin bloquear el ahorro de digitación.
 - El CSV de control puede abrirse en una hoja de cálculo. Mitigación: se escapan celdas que empiezan por `=`, `+`, `-` o `@`.
 - El despliegue corre en el plan gratuito de Render, que suspende el servicio a los 15 minutos sin tráfico y no tiene disco persistente. Mitigación: un cron cada 10 minutos contra `/api/health` reduce los arranques en frío, y los artefactos de `out/` se regeneran desde los fixtures, así que perderlos en un reinicio no rompe nada. Si esto pasara de demo a uso real, el control y la evidencia tendrían que vivir fuera del contenedor.
+- Dos procesos sobre el mismo `out/` pueden pisarse el número de OC. El candado es de un solo proceso. En producción haría falta un SAP real o un lock externo. Detalle en `SECURITY.md`.
+
+## 13. Seguridad
+
+La decisión de autorización no la toman el modelo ni el navegador. `oc_crear` vuelve a leer los fixtures, recalcula el payload y, si hay excepciones, exige un `actionId` de un solo uso atado a la sesión, al caso, al turno siguiente, al hash canónico y a un vencimiento. `confirmado: true` no crea nada por sí solo.
+
+El token de acceso viaja en `Authorization: Bearer`. La comparación es por hash, no por igualdad de cadenas. En producción, si falta `APP_ACCESS_TOKEN`, la API responde 401. La interfaz lo quita de la URL y lo deja en `sessionStorage` de la pestaña. El README entrega esa clave a los evaluadores, como pide el PRD: es la contraseña compartida de la demo, no `LLM_API_KEY`. Se revoca al cerrar la defensa.
+
+Quedan límites de cuerpo, de peticiones, de sesiones y de llamadas simultáneas al modelo. Los seis casos y la idempotencia del demo no cambian. Lo que sigue fuera de alcance: identidad por analista, lock entre varios procesos y el disco efímero de Render. El detalle, las pruebas y lo que no se declaró seguro están en `SECURITY.md`.

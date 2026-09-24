@@ -1,6 +1,19 @@
 import type { DetalleCaso, FilaBandeja, RespuestaChat } from "./tipos.ts"
 
-const token = new URLSearchParams(location.search).get("token")
+const token = leerToken()
+
+function leerToken(): string | null {
+  const params = new URLSearchParams(location.search)
+  const enUrl = params.get("token")
+  if (enUrl) {
+    sessionStorage.setItem("app-access-token", enUrl)
+    params.delete("token")
+    const resto = params.toString()
+    history.replaceState(null, "", `${location.pathname}${resto ? `?${resto}` : ""}${location.hash}`)
+    return enUrl
+  }
+  return sessionStorage.getItem("app-access-token")
+}
 
 function cabeceras(): Record<string, string> {
   const headers: Record<string, string> = { "content-type": "application/json" }

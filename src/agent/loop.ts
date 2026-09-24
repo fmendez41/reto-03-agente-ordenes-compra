@@ -1,9 +1,10 @@
-import { appendFileSync, mkdirSync, readFileSync } from "node:fs"
+import { appendFileSync, mkdirSync, readFileSync, renameSync, statSync } from "node:fs"
 import path from "node:path"
 import { z } from "zod"
 import type { HerramientaJson, LlmAdapter, MensajeModelo } from "../llm/adapter.ts"
 import { nombreRegla } from "../core/catalogo-reglas.ts"
 import { flushContexto, herramientas, type Contexto, type Definicion } from "../core/tools/oc.ts"
+import { redactar } from "../core/secreto.ts"
 import { ubicar } from "../core/rutas.ts"
 
 const TABLA: Record<string, Definicion> = {
@@ -239,16 +240,21 @@ function registrar(directory: string, ctx: Contexto, nombre: string, args: unkno
     ts: new Date().toISOString(),
     sessionId: ctx.sessionId,
     name: nombre,
-    args,
+    args: typeof args === "string" ? redactar(args) : JSON.parse(redactar(JSON.stringify(args))),
     ok,
     summary: redactar(summary),
   })
-  appendFileSync(path.join(ubicacion.outDir, "log.jsonl"), `${linea}\n`, "utf8")
+  const destino = path.join(ubicacion.outDir, "log.jsonl")
+  const tope = Number(process.env.MAX_LOG_BYTES ?? 5_000_000)
+  try {
+    if (statSync(destino).size > tope) renameSync(destino, path.join(ubicacion.outDir, "log.1.jsonl"))
+  } catch {
+    // El log todavía no existe.
+  }
+  appendFileSync(destino, `${linea}\n`, "utf8")
 }
 
-export function redactar(texto: string): string {
-  return texto.replace(/sk-[A-Za-z0-9_-]{8,}/g, "[redactado]").replace(/Bearer\s+\S+/gi, "Bearer [redactado]")
-}
+export { redactar }
 
 export function cerrarTurno(ctx: Contexto, _consumida: boolean): void {
   flushContexto(ctx)

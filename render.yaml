@@ -10,7 +10,7 @@ services:
       - key: LLM_MODEL
         value: gpt-4.1-mini
       - key: APP_ACCESS_TOKEN
-        generateValue: true
+        sync: false
       - key: MAX_TOOL_ITERATIONS
         value: "25"
       - key: MAX_SESSION_TOKENS
