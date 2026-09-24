@@ -38,9 +38,11 @@ bun test
 bun demo.ts
 ```
 
-`bun test` no necesita clave. `demo.ts` limpia `out/`, recorre los seis casos, repite `sol-001` (idempotencia) y crea `sol-004`, `sol-005` y `sol-006` solo después de emitir y consumir una confirmación.
+`bun test` no necesita clave. `demo.ts` recorre los seis casos, repite `sol-001` (idempotencia) y crea `sol-004`, `sol-005` y `sol-006` solo después de emitir y consumir una confirmación.
 
-Las 45 pruebas cubren las diez reglas, los parsers, los límites de seguridad, el protocolo de confirmación, la construcción del payload, el recorrido completo, la frontera de módulos y la bandeja con su capa de formato.
+Para ser determinista, el demo arranca borrando lo que él mismo produce dentro de `out/`, pero respeta `out/sessions/` y `out/confirmaciones.json` para no tumbar la conversación de quien esté usando la aplicación. Con `DEMO_OUT_DIR=out-demo bun demo.ts` escribe en otra carpeta y no toca `out/` en absoluto.
+
+Las 61 pruebas cubren las diez reglas, los parsers, los límites de seguridad, el protocolo de confirmación, la construcción del payload, el recorrido completo, la frontera de módulos, la persistencia del historial entre turnos, el renderizado de markdown y la bandeja con su capa de formato.
 
 ## Variables
 
@@ -52,8 +54,10 @@ Las 45 pruebas cubren las diez reglas, los parsers, los límites de seguridad, e
 | `MAX_TOOL_ITERATIONS` | Tope de iteraciones por turno. |
 | `MAX_SESSION_TOKENS` | Tope aproximado por sesión. |
 | `MAX_MESSAGE_CHARS` | Tamaño máximo del mensaje. |
+| `MAX_HISTORY_CHARS` | Tope del historial que viaja al modelo. Por defecto 120.000 caracteres. Al pasarse se podan los turnos más viejos. |
 | `APP_ACCESS_TOKEN` | Si existe, `POST /api/chat` exige `Authorization: Bearer`. |
 | `PORT` | Puerto HTTP. Por defecto 3000. |
+| `DEMO_OUT_DIR` | Solo para `bun demo.ts`: carpeta de salida alterna. |
 
 ## API
 
@@ -64,9 +68,15 @@ Las 45 pruebas cubren las diez reglas, los parsers, los límites de seguridad, e
 - `GET /api/sessions/:id` devuelve el historial de esa sesión.
 - `GET /api/health` devuelve `{ ok, provider, model }` sin la clave.
 
+Cualquier otra ruta bajo `/api/` devuelve 404 con `{ error }`. El resto de rutas sirven la interfaz.
+
 ## Despliegue
 
-Hay `Dockerfile` y `render.yaml`. En Render, el servicio Docker usa el health check `/api/health`. La clave del modelo se carga como variable de entorno del servicio, nunca en la imagen. El token de acceso generado se entrega a quien vaya a probar el link, en la URL `/?token=...`.
+Hay `Dockerfile` y `render.yaml`. El blueprint crea un servicio Docker con health check en `/api/health`, genera `APP_ACCESS_TOKEN` solo y deja `LLM_API_KEY` marcada como `sync: false`: hay que cargarla a mano en el panel del servicio. La clave nunca entra en la imagen ni en el repositorio.
+
+El `Dockerfile` instala las dependencias en su propia capa con `--frozen-lockfile` contra el `bun.lock` versionado, así que el build es reproducible y un cambio de código no reinstala nada.
+
+El plan gratuito de Render suspende el servicio a los 15 minutos sin tráfico y tarda cerca de un minuto en despertar, además de no tener disco persistente: lo que se escriba en `out/` se pierde en cada despliegue o reinicio. Para el reto no importa, porque los artefactos se regeneran desde los fixtures, pero conviene saberlo antes de abrir el enlace delante de alguien. `.github/workflows/mantener-despierto.yml` llama a `/api/health` cada 10 minutos para reducir los arranques en frío; necesita la variable de repositorio `RENDER_HEALTH_URL`.
 
 ## Fuera de alcance
 

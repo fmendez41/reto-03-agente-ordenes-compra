@@ -34,7 +34,7 @@ Estimación por caso feliz, no una medición de factura: del orden de 8.000 toke
 | RC2 | Existe aprobación, contiene "aprobado" y el remitente está en el centro. | Distinguir "no es de este centro" de "no hay centro". |
 | RC3 | Solo si RC2 halló aprobador. Si no, `no_evaluable`, sin segundo bloqueo. | No marcarla como cumplida en `sol-003`. |
 | RC4 | La subárea pertenece al centro. | Directa. |
-| RC5 | Diferencia absoluta sobre el total de la solicitud, umbral 2 %. Sin cotización, confirmación. | Leer el total del texto, no del modelo. |
+| RC5 | Diferencia absoluta sobre el total de la solicitud, umbral 2 %. Sin cotización, confirmación. Total cero, bloqueo. Monedas distintas, confirmación sin comparar. | Leer el total del texto, no del modelo. Y no dejar que una división trivial dé por bueno el control. |
 | RC6 | Sin IVA se deriva el default del proveedor y se pide confirmación. | Va junto con el payload, no como un parche posterior. |
 | RC7 | Sin condiciones se deriva y solo se informa. | No mezclarla con las confirmaciones. |
 | RC8 | Factura con fecha anterior a la solicitud: `retroactiva` y confirmación. | La marca vive en el log, no en una política inventada. |
@@ -67,6 +67,10 @@ En los fixtures hay un caso retroactivo de seis. Es un caso de prueba, no una me
 6. La pantalla es una bandeja de casos, no un chat suelto. La analista trabaja sobre una cola de solicitudes, así que abre viendo las seis con su estado y entra a la que le interesa. Un chat sin contexto la obliga a recordar los identificadores y no le dice qué falta por hacer.
 7. Las llamadas a herramienta se muestran traducidas, no como JSON. Antes el turno devolvía el resultado recortado a 500 caracteres y la pantalla lo imprimía crudo: la analista no podía leer lo que el agente había hecho. Ahora cada llamada lleva un título, una frase en lenguaje natural y los datos completos, que la interfaz dibuja como ficha. El recorte quedó solo en `out/log.jsonl`.
 8. Los montos de los mensajes de control salen formateados (`$ 25.000.000`, no `25000000`). El texto de la regla lo lee tanto la analista como el modelo, así que el formato vive en `formatoMonto` dentro del core, no en el front.
+9. El resultado de cada herramienta se queda en el historial de la sesión. Antes el turno guardaba la pregunta y la respuesta, pero descartaba los mensajes de herramienta: en el segundo turno el agente ya no tenía el paquete delante y contestaba de memoria o volvía a leerlo. Eso choca de frente con CA2, que prohíbe afirmar sin dato. La contrapartida es que el historial crece, así que `podarHistorial` conserva el mensaje de sistema, recorta por la cola hasta `MAX_HISTORY_CHARS` y nunca deja un mensaje de herramienta huérfano de su llamada, porque el proveedor rechaza esa forma.
+10. Hay un solo catálogo de reglas, `src/core/catalogo-reglas.ts`, con código, nombre, propósito, criterio y severidad. La API lo expone en el detalle del caso y la interfaz lo consume. La alternativa era escribir los nombres en el front, que es donde se desincronizan: el core diría RC7 y la pantalla diría otra cosa el día que cambie el criterio.
+11. La escritura de la evidencia es precondición de `oc_crear`, no un paso que el agente pueda saltarse. El camino automático ya llamaba a `generar_evidencia` antes de crear, pero el camino conversacional no lo exigía: el modelo podía crear la orden y dejar el `aprobacion.txt` sin escribir. Ahora `crear` escribe la evidencia y aborta si falla. El PDF es aparte: si `pdf-lib` falla, la orden se crea igual y la respuesta lleva un aviso, porque el archivo que sostiene el sha256 es el txt.
+12. El chat dibuja negritas, listas y tablas con un analizador propio de `web/src/lib/markdown.ts` que devuelve estructura, nunca HTML. La alternativa era una librería de markdown, que trae `dangerouslySetInnerHTML` y con él la posibilidad de que un texto que viene de una cotización termine ejecutándose en la pantalla de la analista.
 
 ## 9. Supuestos
 
@@ -79,6 +83,10 @@ En los fixtures hay un caso retroactivo de seis. Es un caso de prueba, no una me
 - El sha256 es del texto canónico de la aprobación, no de los bytes del PDF. El PDF y el txt declaran ese mismo hash.
 - La sección 0 del enunciado dice que se aprueba con 70/100 según la rúbrica de la sección 10, pero la sección 10 trae riesgos y supuestos, no la rúbrica. No asumo criterios de calificación que el documento no contiene.
 - `oc_leer_excel` queda fuera: los fixtures ya traen JSON.
+- RC5 con total cero bloquea en vez de confirmar. El enunciado define la regla como una diferencia porcentual, y con denominador cero no hay porcentaje que calcular. Interpreto que un total en cero es un dato malo de la solicitud, no una discrepancia que la analista pueda evaluar mirando dos cifras.
+- RC5 con monedas distintas pide confirmación y no compara. Restar 25.000.000 COP de 25.000.000 USD da cero, que es el peor resultado posible: el control pasaría sin haber comprobado nada. El sistema no convierte divisas ni asume una tasa.
+- `sol-003` bloquea por RC2, no por RC3. El aprobador no figura en el centro, así que no hay tope contra el cual comparar el monto y RC3 queda `no_evaluable`. Contarla como dos bloqueos sugeriría dos problemas distintos cuando hay uno solo, y le daría a la analista dos cosas que arreglar en vez de una.
+- El demo no aísla su salida en otro directorio por defecto, aunque borrar `out/` entero era un problema real. Las secciones 3, 5 y 7 del enunciado fijan las rutas de los artefactos en `out/sap/ordenes.jsonl`, `out/<caso>/` y `out/control.csv`, y la sección 8 pide que `out/` se limpie al inicio. Mover la salida rompería las rutas documentadas. La solución es borrar solo lo que el demo produce y conservar `out/sessions/` y `out/confirmaciones.json`, que es lo que realmente se estaba perdiendo. `DEMO_OUT_DIR` deja el aislamiento total disponible para quien lo quiera.
 
 ## 10. Cobertura
 
@@ -92,6 +100,9 @@ En los fixtures hay un caso retroactivo de seis. Es un caso de prueba, no una me
 | HU-6 Errores legibles | Hecho | Integración con el buzón para pedir el dato al solicitante. |
 | Chat, tool calls y confirmación | Hecho | Identidad de la analista. El reto la declara no-objetivo. |
 | Bandeja, detalle del caso y confirmación con valores enfrentados | Hecho | Paginación y búsqueda cuando sean cientos de casos, y recarga en vivo si dos analistas trabajan a la vez. |
+| Memoria de la conversación entre turnos | Hecho | Resumir los turnos podados en vez de descartarlos, cuando las sesiones pasen de unas decenas de mensajes. |
+| Lectura con lector de pantalla | Hecho en lo esencial | Recorrido completo con NVDA o JAWS y orden de foco revisado tras cada confirmación. |
+| Despliegue público | Hecho en Render | Un plan con disco persistente y sin suspensión si esto deja de ser una demo. |
 | `oc_leer_excel` | No hecho | Solo si el canal real sigue siendo xlsx. |
 
 ## 11. Uso de IA
@@ -99,6 +110,8 @@ En los fixtures hay un caso retroactivo de seis. Es un caso de prueba, no una me
 Construí esta solución con Cursor, modelo Grok 4.7, como asistente de implementación. Le pedí el esqueleto del dominio, las pruebas de las reglas y el ciclo del agente a partir del enunciado y de correcciones mías sobre confirmación, pruebas, frontera del módulo y prioridad del despliegue.
 
 Descarté tres propuestas del asistente: tratar `apta: true` como permiso para crear; marcar RC3 como un segundo bloqueo en `sol-003`; y un adaptador "compatible" con varios proveedores sin probar cada uno. También descarté afirmar un porcentaje de órdenes retroactivas a partir de los fixtures.
+
+Sobre la solución terminada corrí una auditoría contra el enunciado y una revisión de interfaz, esta vez con Claude Opus, usando el navegador para recorrer los seis casos. Destapó tres fallos que las pruebas no veían: el historial de la sesión descartaba los resultados de herramienta y el agente contestaba de memoria en el segundo turno; las fechas se mostraban un día antes por interpretar en hora local un valor UTC; y por el camino conversacional se podía crear una orden sin que el `aprobacion.txt` llegara a escribirse. Cada uno quedó cerrado con su prueba de regresión. Descarté dos propuestas de esa auditoría: relajar la adyacencia de turno en `validarAccion`, que es un control de seguridad con prueba propia y no un problema de usabilidad, y mover la salida del demo a otro directorio, que habría roto las rutas que fija el enunciado.
 
 ## 12. Riesgos
 
@@ -108,3 +121,4 @@ Descarté tres propuestas del asistente: tratar `apta: true` como permiso para c
 - Un link público puede gastar la clave. Mitigación: topes de iteración, de tokens y de tamaño, y `APP_ACCESS_TOKEN`.
 - SAP puede no estar disponible. Mitigación: el plan B de la sección 6, sin bloquear el ahorro de digitación.
 - El CSV de control puede abrirse en una hoja de cálculo. Mitigación: se escapan celdas que empiezan por `=`, `+`, `-` o `@`.
+- El despliegue corre en el plan gratuito de Render, que suspende el servicio a los 15 minutos sin tráfico y no tiene disco persistente. Mitigación: un cron cada 10 minutos contra `/api/health` reduce los arranques en frío, y los artefactos de `out/` se regeneran desde los fixtures, así que perderlos en un reinicio no rompe nada. Si esto pasara de demo a uso real, el control y la evidencia tendrían que vivir fuera del contenedor.
