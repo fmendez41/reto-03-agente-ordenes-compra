@@ -1,0 +1,40 @@
+name: Mantener despierto el servicio de Render
+
+# El plan gratuito de Render suspende el servicio a los 15 minutos sin tráfico y
+# tarda cerca de un minuto en responder al despertar. Este cron lo toca cada 10
+# minutos para que quien abra el enlace no se encuentre con esa espera.
+#
+# Requiere la variable de repositorio RENDER_HEALTH_URL, por ejemplo
+# https://<servicio>.onrender.com/api/health. Se configura en Settings →
+# Secrets and variables → Actions → Variables. Si no está, el job no falla:
+# simplemente avisa y termina, para no llenar de correos de error el buzón.
+#
+# GitHub puede retrasar o saltarse ejecuciones de cron en repositorios con poca
+# actividad, así que esto reduce los arranques en frío pero no los elimina.
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  despertar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Llamar al health check
+        env:
+          URL: ${{ vars.RENDER_HEALTH_URL }}
+        run: |
+          if [ -z "$URL" ]; then
+            echo "Falta la variable RENDER_HEALTH_URL. Configúrala para activar el cron."
+            exit 0
+          fi
+          # --max-time 90 porque un arranque en frío del plan gratuito tarda cerca
+          # de un minuto, y sin margen el propio keepalive daría siempre error.
+          codigo=$(curl --silent --show-error --location --max-time 90 --output /dev/null --write-out "%{http_code}" "$URL")
+          echo "El servicio respondió $codigo"
+          test "$codigo" = "200"
