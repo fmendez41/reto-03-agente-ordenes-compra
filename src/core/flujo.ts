@@ -1,5 +1,6 @@
 import { readdirSync } from "node:fs"
 import path from "node:path"
+import { CATALOGO_REGLAS, type FichaRegla } from "./catalogo-reglas.ts"
 import { evidenciaDeCaso } from "./evidencia.ts"
 import { cargarMaestros } from "./maestros.ts"
 import { leerPaquete } from "./paquete.ts"
@@ -56,6 +57,7 @@ export type DetalleCaso = {
   catalogos: {
     indicadores: Array<{ codigo: string; descripcion: string; tasa: number }>
     condiciones: Array<{ codigo: string; descripcion: string; dias: number }>
+    reglas: FichaRegla[]
   }
 }
 
@@ -133,7 +135,11 @@ export async function detalleCaso(
       orden: armado?.ok ? armado.data.orden : null,
       numero_oc: existente?.numero_oc ?? null,
       evidencia: evidencia.ok ? { sha256: evidencia.sha256, texto: evidencia.canonico } : null,
-      catalogos: { indicadores: maestros.data.indicadores, condiciones: maestros.data.condiciones },
+      catalogos: {
+        indicadores: maestros.data.indicadores,
+        condiciones: maestros.data.condiciones,
+        reglas: CATALOGO_REGLAS,
+      },
     },
   }
 }

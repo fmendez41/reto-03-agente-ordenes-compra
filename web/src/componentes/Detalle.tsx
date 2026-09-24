@@ -130,7 +130,7 @@ export function Detalle({ caso, alVolver, alCambiar }: { caso: string; alVolver:
         <div>
           {detalle ? (
             <>
-              <Reglas evaluaciones={detalle.validacion.evaluaciones} />
+              <Reglas evaluaciones={detalle.validacion.evaluaciones} reglas={detalle.catalogos.reglas} />
               <Orden
                 orden={detalle.orden}
                 catalogos={detalle.catalogos}

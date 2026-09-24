@@ -1,4 +1,5 @@
 import { afterAll, describe, expect, test } from "bun:test"
+import { CATALOGO_REGLAS, fichaRegla, nombreRegla } from "../src/core/catalogo-reglas.ts"
 import { detalleCaso, listarCasos, resumenCasos } from "../src/core/flujo.ts"
 import { dinero, etiquetaEstado, etiquetaRegla, fecha, fuenteLegible, numero, unidad } from "../web/src/lib/formato.ts"
 import { copiaFixtures } from "./ayuda.ts"
@@ -44,6 +45,46 @@ describe("bandeja", () => {
   test("un caso inventado no se lee", async () => {
     const resultado = await detalleCaso(ubicacion, "sol-999")
     expect(resultado.ok).toBe(false)
+  })
+})
+
+describe("catálogo de reglas", () => {
+  test("cubre las diez reglas del PRD sin huecos ni duplicados", () => {
+    const codigos = CATALOGO_REGLAS.map((ficha) => ficha.codigo)
+    expect(codigos).toEqual(["RC1", "RC2", "RC3", "RC4", "RC5", "RC6", "RC7", "RC8", "RC9", "RC10"])
+    for (const ficha of CATALOGO_REGLAS) {
+      expect(ficha.nombre.length).toBeGreaterThan(0)
+      expect(ficha.proposito.length).toBeGreaterThan(0)
+      expect(ficha.criterio.length).toBeGreaterThan(0)
+    }
+    expect(CATALOGO_REGLAS.filter((ficha) => ficha.severidad === "bloqueo").map((ficha) => ficha.codigo)).toEqual([
+      "RC1",
+      "RC2",
+      "RC3",
+      "RC4",
+      "RC10",
+    ])
+  })
+
+  test("toda regla que evalúa el motor tiene ficha en el catálogo", async () => {
+    for (const caso of listarCasos(ubicacion)) {
+      const resultado = await detalleCaso(ubicacion, caso)
+      if (!resultado.ok) continue
+      for (const evaluacion of resultado.data.validacion.evaluaciones) {
+        expect(fichaRegla(evaluacion.regla)).not.toBeNull()
+      }
+    }
+  })
+
+  test("el detalle expone el catálogo para que la interfaz no repita los textos", async () => {
+    const resultado = await detalleCaso(ubicacion, "sol-001")
+    if (!resultado.ok) throw new Error(resultado.error)
+    expect(resultado.data.catalogos.reglas).toHaveLength(10)
+  })
+
+  test("un código fuera del catálogo se muestra tal cual en vez de romperse", () => {
+    expect(nombreRegla("RC5")).toBe("RC5 · Cotización cuadra con la solicitud")
+    expect(nombreRegla("RC99")).toBe("RC99")
   })
 })
 

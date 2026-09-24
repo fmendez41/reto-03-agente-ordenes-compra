@@ -90,9 +90,18 @@ export type OrdenCompra = {
   excepciones: Array<{ codigo: string; detalle: string; confirmado_por: string | null }>
 }
 
+export type FichaRegla = {
+  codigo: string
+  nombre: string
+  proposito: string
+  criterio: string
+  severidad: "bloqueo" | "confirmacion" | "derivado"
+}
+
 export type Catalogos = {
   indicadores: Array<{ codigo: string; descripcion: string; tasa: number }>
   condiciones: Array<{ codigo: string; descripcion: string; dias: number }>
+  reglas: FichaRegla[]
 }
 
 export type DetalleCaso = {

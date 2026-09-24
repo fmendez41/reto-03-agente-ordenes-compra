@@ -3,7 +3,7 @@ import type { Catalogos, Evaluacion, VistaLlamada } from "../tipos.ts"
 
 type Registro = Record<string, unknown>
 
-const CATALOGOS_VACIOS: Catalogos = { indicadores: [], condiciones: [] }
+const CATALOGOS_VACIOS: Catalogos = { indicadores: [], condiciones: [], reglas: [] }
 
 function conFuente(derivado: Registro | null, texto: string): string {
   if (!derivado) return "—"
