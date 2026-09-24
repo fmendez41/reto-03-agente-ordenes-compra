@@ -182,23 +182,29 @@ describe("textos únicos", () => {
     expect(skill).toBe(conocimiento)
   })
 
-  test("el módulo no importa servidor, agente ni proveedor", () => {
+  test("el módulo no sale de su carpeta ni importa servidor, agente o proveedor", () => {
+    const raizModulo = path.join(RAIZ, "modulo")
     const vistos = new Set<string>()
-    const pendientes = [path.join(RAIZ, "modulo/tools/oc.ts")]
+    const pendientes = [path.join(raizModulo, "tools", "oc.ts")]
     while (pendientes.length > 0) {
       const archivo = pendientes.pop()
       if (!archivo || vistos.has(archivo)) continue
       vistos.add(archivo)
       const texto = readFileSync(archivo, "utf8")
-      const imports = [...texto.matchAll(/from "(\.\.?\/[^"]+)"/g)].map((coincidencia) => coincidencia[1] ?? "")
+      const imports = [...texto.matchAll(/(?:from|import)\s*\(?\s*"(\.\.?\/[^"]+)"/g)].map(
+        (coincidencia) => coincidencia[1] ?? "",
+      )
       for (const relativo of imports) {
         const resuelto = path.resolve(path.dirname(archivo), relativo)
+        const relativoAModulo = path.relative(raizModulo, resuelto)
+        expect(relativoAModulo.startsWith("..") || path.isAbsolute(relativoAModulo)).toBe(false)
         expect(resuelto.includes(`${path.sep}src${path.sep}server`)).toBe(false)
         expect(resuelto.includes(`${path.sep}src${path.sep}agent${path.sep}`)).toBe(false)
         expect(resuelto.includes(`${path.sep}src${path.sep}llm${path.sep}`)).toBe(false)
         if (resuelto.endsWith(".ts")) pendientes.push(resuelto)
       }
     }
+    expect(vistos.size).toBeGreaterThan(1)
   })
 })
 

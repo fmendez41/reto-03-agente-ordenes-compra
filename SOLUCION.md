@@ -6,11 +6,11 @@ La analista administrativa digita a mano cada orden de compra a partir de un cor
 
 ## 2. Arquitectura
 
-El navegador habla con un solo proceso Bun (`src/server.ts`) que sirve `web/dist` y la API. El ciclo del agente está en `src/agent/loop.ts`. El comportamiento vive en `agent/prompt.md`, el conocimiento en `src/knowledge/ordenes-compra.md` y la ejecución en `src/core/`. El servidor no contiene las reglas RC1–RC10.
+El navegador habla con un solo proceso Bun (`src/server.ts`) que sirve `web/dist` y la API. El ciclo del agente está en `src/agent/loop.ts`. El comportamiento vive en `agent/prompt.md`, el conocimiento en `src/knowledge/ordenes-compra.md` y la ejecución en `modulo/`. El servidor no contiene las reglas RC1–RC10.
 
 La interfaz es React con Vite en `web/`, compilada a `web/dist`. Es una capa de presentación: no repite ninguna regla, solo consume `GET /api/casos`, `GET /api/casos/:caso` y `POST /api/chat`. El servidor deriva la bandeja y el detalle de `resumenCasos` y `detalleCaso` en `src/core/flujo.ts`, de modo que la pantalla y el agente leen la misma verdad.
 
-`modulo/tools/oc.ts` reexporta `src/core/tools/oc.ts`. No importa el servidor, el ciclo ni el proveedor. Una prueba recorre ese grafo y otra compara el cuerpo del prompt y del conocimiento con las copias del módulo.
+`modulo/tools/oc.ts` es la implementación que usa la aplicación: `src/core` la reexporta. No importa el servidor, el ciclo ni el proveedor. Copiar solo `modulo/` a otro directorio importa las herramientas; `zod` y `pdf-lib` siguen siendo dependencias de paquete. Una prueba hace esa copia y otra compara el cuerpo del prompt y del conocimiento con las copias del módulo, y recorre el grafo para confirmar que ningún import relativo sale de la carpeta.
 
 ## 3. Ciclo del agente
 
@@ -107,7 +107,7 @@ En los fixtures hay un caso retroactivo de seis. Es un caso de prueba, no una me
 | Lectura con lector de pantalla | Hecho en lo esencial | Recorrido completo con NVDA o JAWS y orden de foco revisado tras cada confirmación. |
 | Despliegue público | Hecho en Render | Un plan con disco persistente y sin suspensión si esto deja de ser una demo. |
 | `oc_leer_excel` | No hecho | Solo si el canal real sigue siendo xlsx. |
-| Bonus `modulo/` | Parcial | El prompt y el conocimiento coinciden con la aplicación, y las herramientas reexportan `src/core` sin importar el servidor. Copiar solo `modulo/` a otro directorio no arranca: el código vive en `src/core` para no tener dos copias. |
+| Bonus `modulo/` | Hecho | La implementación vive en `modulo/` y `src/core` la reexporta, así que no hay dos copias. Copiar solo la carpeta importa las herramientas. |
 
 ## 11. Uso de IA
 

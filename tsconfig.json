@@ -12,5 +12,5 @@
     "noEmit": true,
     "types": ["bun"]
   },
-  "include": ["src", "web/src", "demo.ts", "test", "vite.config.ts", "scripts"]
+  "include": ["src", "web/src", "demo.ts", "test", "vite.config.ts", "scripts", "modulo"]
 }
