@@ -2,6 +2,7 @@ import { appendFileSync, mkdirSync, readFileSync } from "node:fs"
 import path from "node:path"
 import { z } from "zod"
 import type { HerramientaJson, LlmAdapter, MensajeModelo } from "../llm/adapter.ts"
+import { nombreRegla } from "../core/catalogo-reglas.ts"
 import { rearmarAccion } from "../core/confirmacion.ts"
 import { flushContexto, herramientas, type Contexto, type Definicion } from "../core/tools/oc.ts"
 import { ubicar } from "../core/rutas.ts"
@@ -190,23 +191,39 @@ export function describir(nombre: string, data: unknown): string {
     const estado = String(registro.estado ?? "")
     const bloqueos = codigosDe(registro.bloqueos)
     const confirmaciones = codigosDe(registro.confirmaciones)
-    if (estado === "BLOQUEADA") return `Bloqueada por ${bloqueos.join(", ")}.`
-    if (estado === "PENDIENTE_CONFIRMACION") return `Requiere confirmar ${confirmaciones.join(", ")}.`
-    return "Pasó las diez reglas de control."
+    if (estado === "BLOQUEADA") return `Bloqueada por ${enumerar(bloqueos.map(nombreRegla))}.`
+    if (estado === "PENDIENTE_CONFIRMACION") return `Falta confirmar ${enumerar(confirmaciones.map(nombreRegla))}.`
+    return "Pasó los diez controles sin observaciones."
   }
   if (nombre === "oc_construir_payload") {
-    const orden = registro.orden as { proveedor?: { nombre?: string } } | undefined
-    return `Orden lista para ${orden?.proveedor?.nombre ?? "el proveedor"}.`
+    const orden = registro.orden as
+      | { proveedor?: { nombre?: string }; posiciones?: Array<{ cantidad?: number; precio_unitario?: number }> }
+      | undefined
+    const posicion = orden?.posiciones?.[0]
+    const total =
+      posicion && typeof posicion.cantidad === "number" && typeof posicion.precio_unitario === "number"
+        ? ` por ${posicion.cantidad * posicion.precio_unitario}`
+        : ""
+    return `Orden armada para ${orden?.proveedor?.nombre ?? "el proveedor"}${total}. Todavía no está en SAP.`
   }
   if (nombre === "oc_generar_evidencia") {
     const sha = String(registro.sha256 ?? "")
-    return `Evidencia firmada con sha256 ${sha.slice(0, 12)}…`
+    const aviso = registro.aviso ? " El PDF no se pudo generar." : ""
+    return `Correo de aprobación firmado con sha256 ${sha.slice(0, 12)}….${aviso}`
   }
   if (nombre === "oc_crear") {
     const numero = String(registro.numero_oc ?? "")
-    return registro.idempotente ? `Esa solicitud ya tenía la orden ${numero}.` : `Orden ${numero} creada.`
+    return registro.idempotente
+      ? `Esa solicitud ya tenía la orden ${numero}, así que no se creó otra.`
+      : `Orden ${numero} creada en SAP con su evidencia firmada.`
   }
   return "Listo."
+}
+
+function enumerar(items: string[]): string {
+  if (items.length === 0) return "ningún control"
+  if (items.length === 1) return items[0] ?? ""
+  return `${items.slice(0, -1).join(", ")} y ${items.at(-1)}`
 }
 
 function codigosDe(valor: unknown): string[] {

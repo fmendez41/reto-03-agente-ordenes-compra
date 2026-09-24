@@ -15,13 +15,17 @@ const FILTROS: Array<{ id: Filtro; etiqueta: string }> = [
 
 function motivoDe(fila: FilaBandeja): string | null {
   if (fila.error) return fila.error
-  if (fila.estado === "BLOQUEADA" && fila.bloqueos[0]) {
-    return `${fila.bloqueos[0].regla}: ${fila.bloqueos[0].detalle}`
-  }
-  if (fila.estado === "PENDIENTE_CONFIRMACION" && fila.confirmaciones[0]) {
-    return `${fila.confirmaciones[0].regla}: ${fila.confirmaciones[0].detalle}`
-  }
-  return null
+  const lista =
+    fila.estado === "BLOQUEADA" ? fila.bloqueos : fila.estado === "PENDIENTE_CONFIRMACION" ? fila.confirmaciones : []
+  const primera = lista[0]
+  if (!primera) return null
+  const restantes = lista.length - 1
+  const extra = restantes > 0 ? ` Y ${restantes} control${restantes > 1 ? "es" : ""} más.` : ""
+  return `${primera.regla}: ${primera.detalle}${extra}`
+}
+
+function plural(cantidad: number, singular: string, plural: string): string {
+  return `${cantidad} ${cantidad === 1 ? singular : plural}`
 }
 
 export function Bandeja({
@@ -65,7 +69,10 @@ export function Bandeja({
   if (casos.length === 0) {
     return (
       <div className="vacio">
-        <p>No hay solicitudes en la carpeta de fixtures.</p>
+        <p>
+          No hay ninguna solicitud cargada. Los casos se leen de <code>fixtures/reto-03/solicitudes/</code>, una carpeta
+          por caso con el nombre <code>sol-001</code>, <code>sol-002</code> y así.
+        </p>
       </div>
     )
   }
@@ -74,8 +81,9 @@ export function Bandeja({
     <>
       <div className="bandeja-barra">
         <p className="cabecera-meta">
-          {casos.length} solicitudes · {conteo.pendientes} esperan confirmación · {conteo.bloqueadas} bloqueadas ·{" "}
-          {conteo.retroactivas} retroactivas
+          {plural(casos.length, "solicitud", "solicitudes")} · {plural(conteo.pendientes, "espera", "esperan")} tu
+          confirmación · {plural(conteo.bloqueadas, "bloqueada", "bloqueadas")} ·{" "}
+          {plural(conteo.retroactivas, "retroactiva", "retroactivas")}
         </p>
         <div className="filtros" role="group" aria-label="Filtrar por estado">
           {FILTROS.map((opcion) => (
@@ -93,7 +101,10 @@ export function Bandeja({
       </div>
 
       {visibles.length === 0 ? (
-        <p className="vacio">Ninguna solicitud en ese estado.</p>
+        <p className="vacio">
+          Ninguna de las {casos.length} solicitudes está en ese estado ahora mismo. Prueba con otro filtro o vuelve a
+          «Todas».
+        </p>
       ) : (
         <ul className="lista-casos">
           {visibles.map((fila) => {

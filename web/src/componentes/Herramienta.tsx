@@ -1,5 +1,5 @@
 import { conDescripcion, dinero, etiquetaRegla, fecha, fuenteLegible, numero, unidad } from "../lib/formato.ts"
-import type { Catalogos, Evaluacion, VistaLlamada } from "../tipos.ts"
+import type { Catalogos, Evaluacion, FichaRegla, VistaLlamada } from "../tipos.ts"
 
 type Registro = Record<string, unknown>
 
@@ -20,23 +20,60 @@ function Par({ rotulo, valor }: { rotulo: string; valor: string }) {
   )
 }
 
-function ListaReglas({ titulo, items }: { titulo: string; items: Evaluacion[] }) {
+function ListaReglas({ titulo, items, reglas }: { titulo: string; items: Evaluacion[]; reglas: FichaRegla[] }) {
   if (items.length === 0) return null
+  const fichas = new Map(reglas.map((ficha) => [ficha.codigo, ficha]))
   return (
     <>
       <p className="regla-cabecera">
         <span className="regla-codigo">{titulo}</span>
       </p>
       <ul className="reglas">
-        {items.map((item) => (
-          <li key={item.regla} className={`regla ${item.estado}`}>
-            <p className="regla-detalle">
-              <strong>{item.regla}</strong> · {etiquetaRegla(item.estado)}. {item.detalle}
-            </p>
-          </li>
-        ))}
+        {items.map((item) => {
+          const ficha = fichas.get(item.regla)
+          return (
+            <li key={item.regla} className={`regla ${item.estado}`}>
+              <p className="regla-detalle">
+                <strong>{ficha ? `${item.regla} · ${ficha.nombre}` : item.regla}</strong> · {etiquetaRegla(item.estado)}.{" "}
+                {item.detalle}
+              </p>
+            </li>
+          )
+        })}
       </ul>
     </>
+  )
+}
+
+/**
+ * La sección 6.1 del PRD pide mostrar nombre, argumentos y resultado de cada llamada.
+ * Varios argumentos son documentos enteros que el servidor vuelve a leer del disco, así
+ * que se recortan: interesa ver con qué se llamó, no volcar el paquete completo.
+ */
+function valorLegible(valor: unknown): string {
+  if (valor === null || valor === undefined) return "—"
+  if (typeof valor === "string") return valor.length > 140 ? `${valor.slice(0, 140)}…` : valor
+  if (typeof valor === "number" || typeof valor === "boolean") return String(valor)
+  const texto = JSON.stringify(valor)
+  return texto.length > 140 ? `${texto.slice(0, 140)}…` : texto
+}
+
+function Argumentos({ args }: { args: unknown }) {
+  const entradas =
+    args !== null && typeof args === "object" && !Array.isArray(args) ? Object.entries(args as Registro) : null
+  return (
+    <div className="herramienta-args">
+      <p className="herramienta-args-titulo">Argumentos de la llamada</p>
+      {entradas && entradas.length > 0 ? (
+        <dl className="datos">
+          {entradas.map(([clave, valor]) => (
+            <Par key={clave} rotulo={clave} valor={valorLegible(valor)} />
+          ))}
+        </dl>
+      ) : (
+        <p className="herramienta-args-crudo">{valorLegible(args)}</p>
+      )}
+    </div>
   )
 }
 
@@ -113,8 +150,12 @@ function DetalleValidacion({ data, catalogos }: { data: Registro; catalogos: Cat
         />
         <Par rotulo="Retroactiva" valor={data.retroactiva ? "Sí" : "No"} />
       </dl>
-      <ListaReglas titulo="Bloqueos" items={(data.bloqueos ?? []) as Evaluacion[]} />
-      <ListaReglas titulo="Confirmaciones" items={(data.confirmaciones ?? []) as Evaluacion[]} />
+      <ListaReglas titulo="Bloqueos" items={(data.bloqueos ?? []) as Evaluacion[]} reglas={catalogos.reglas} />
+      <ListaReglas
+        titulo="Pendientes de confirmación"
+        items={(data.confirmaciones ?? []) as Evaluacion[]}
+        reglas={catalogos.reglas}
+      />
     </>
   )
 }
@@ -180,10 +221,12 @@ export function Herramienta({ llamada, catalogos }: { llamada: VistaLlamada; cat
     <details className={`herramienta ${llamada.ok ? "" : "fallo"}`}>
       <summary>
         <span className="herramienta-titulo">{llamada.titulo}</span>
+        <code className="herramienta-nombre">{llamada.name}</code>
         <span className="herramienta-resumen">{llamada.resumen}</span>
       </summary>
       <div className="herramienta-cuerpo">
-        {!llamada.ok ? <p>{llamada.error}</p> : null}
+        <Argumentos args={llamada.args} />
+        {!llamada.ok ? <p className="herramienta-error">{llamada.error}</p> : null}
         {llamada.ok && llamada.name === "oc_leer_paquete" ? <DetallePaquete data={data} /> : null}
         {llamada.ok && llamada.name === "oc_validar" ? <DetalleValidacion data={data} catalogos={lista} /> : null}
         {llamada.ok && llamada.name === "oc_construir_payload" ? <DetalleOrden data={data} catalogos={lista} /> : null}

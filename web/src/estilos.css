@@ -586,6 +586,47 @@ textarea:focus-visible,
   font-size: 0.9rem;
 }
 
+.herramienta-nombre {
+  font-family: Consolas, "SF Mono", monospace;
+  font-size: 0.78rem;
+  color: var(--tinta-suave);
+  background: #efece5;
+  border: 1px solid var(--linea);
+  border-radius: 5px;
+  padding: 0.05rem 0.35rem;
+}
+
+.herramienta-args {
+  border-bottom: 1px dashed var(--linea);
+  padding-bottom: 0.65rem;
+  margin-bottom: 0.65rem;
+}
+
+.herramienta-args-titulo {
+  margin: 0 0 0.35rem;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--tinta-suave);
+}
+
+.herramienta-args .datos dt {
+  font-family: Consolas, "SF Mono", monospace;
+  font-size: 0.85rem;
+}
+
+.herramienta-args-crudo {
+  margin: 0;
+  font-family: Consolas, "SF Mono", monospace;
+  font-size: 0.82rem;
+  overflow-wrap: anywhere;
+}
+
+.herramienta-error {
+  margin: 0;
+  color: var(--rojo);
+}
+
 .pensando {
   display: flex;
   align-items: center;

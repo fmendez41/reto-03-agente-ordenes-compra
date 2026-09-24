@@ -1,22 +1,29 @@
 import { conDescripcion, dinero, fecha, numero, unidad } from "../lib/formato.ts"
-import type { Catalogos, OrdenCompra } from "../tipos.ts"
+import type { Catalogos, Evaluacion, OrdenCompra } from "../tipos.ts"
 
 export function Orden({
   orden,
   catalogos,
   numeroOc,
   sha256,
+  bloqueos = [],
 }: {
   orden: OrdenCompra | null
   catalogos: Catalogos
   numeroOc: string | null
   sha256: string | null
+  bloqueos?: Evaluacion[]
 }) {
   if (!orden) {
+    const codigos = bloqueos.map((item) => item.regla)
     return (
       <section className="panel" aria-labelledby="titulo-orden">
         <h3 id="titulo-orden">Orden de compra</h3>
-        <p>Todavía no hay orden que mostrar: primero hay que levantar los bloqueos.</p>
+        <p>
+          {codigos.length > 0
+            ? `Todavía no hay orden que mostrar. La orden solo se arma cuando no queda ningún bloqueo, y este caso tiene ${codigos.length === 1 ? "el de" : "los de"} ${codigos.join(", ")}. El panel de controles explica qué falta en cada uno.`
+            : "Todavía no hay orden que mostrar. La orden solo se arma cuando no queda ningún bloqueo."}
+        </p>
       </section>
     )
   }

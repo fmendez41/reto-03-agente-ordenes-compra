@@ -136,6 +136,7 @@ export function Detalle({ caso, alVolver, alCambiar }: { caso: string; alVolver:
                 catalogos={detalle.catalogos}
                 numeroOc={detalle.numero_oc}
                 sha256={detalle.evidencia?.sha256 ?? null}
+                bloqueos={detalle.validacion.bloqueos}
               />
             </>
           ) : (

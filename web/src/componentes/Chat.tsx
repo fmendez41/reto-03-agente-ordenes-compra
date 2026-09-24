@@ -58,8 +58,9 @@ export function Chat({
 
       {mensajes.length === 0 ? (
         <p className="vacio">
-          Pídele al agente que procese {caso}. Verás cada herramienta que usa y te pedirá confirmación si algo no
-          cuadra.
+          Pídele al agente que procese {caso}. Irá leyendo el paquete de documentos, contrastándolo contra los maestros
+          y armando la orden, y verás cada herramienta que usa con sus argumentos y su resultado. No creará nada en SAP
+          sin tu confirmación cuando algún control lo pida.
         </p>
       ) : (
         <div className="chat-mensajes">
