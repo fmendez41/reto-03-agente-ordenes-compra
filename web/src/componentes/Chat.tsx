@@ -105,6 +105,15 @@ export function Chat({
   const [texto, setTexto] = useState("")
   const finRef = useRef<HTMLDivElement>(null)
 
+  const ultimo = mensajes.at(-1)
+  const anuncio = pensando
+    ? "El agente está trabajando en el caso."
+    : confirmacion
+      ? `El agente necesita tu confirmación para ${confirmacion.caso} por ${confirmacion.codigos.join(", ")}. El bloque de confirmación está al final de la conversación.`
+      : ultimo && ultimo.autor !== "analista"
+        ? `${AUTORES[ultimo.autor]}. ${ultimo.texto}`
+        : ""
+
   useEffect(() => {
     const suave = !window.matchMedia("(prefers-reduced-motion: reduce)").matches
     finRef.current?.scrollIntoView({ block: "end", behavior: suave ? "smooth" : "auto" })
@@ -156,13 +165,21 @@ export function Chat({
         </div>
       )}
 
-      <div aria-live="polite" role="status">
-        {pensando ? (
-          <p className="pensando">
-            <span className="punto" aria-hidden="true" />
-            El agente está trabajando en el caso…
-          </p>
-        ) : null}
+      {pensando ? (
+        <p className="pensando" aria-hidden="true">
+          <span className="punto" />
+          El agente está trabajando en el caso…
+        </p>
+      ) : null}
+
+      {/*
+        Una sola región viva para todo el panel. Antes solo anunciaba el indicador de
+        "pensando", así que con lector de pantalla se oía que el agente trabajaba y
+        después silencio: ni la respuesta ni la petición de confirmación se anunciaban.
+        Tenerlas en una sola región evita además que dos regiones se pisen entre sí.
+      */}
+      <div className="solo-lectores" role="status" aria-live="polite">
+        {anuncio}
       </div>
 
       {confirmacion ? (

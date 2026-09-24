@@ -38,6 +38,7 @@ export function Detalle({ caso, alVolver, alCambiar }: { caso: string; alVolver:
 
   const conversar = useCallback(
     async (texto: string, actionId?: string | null) => {
+      const pendiente = confirmacion
       setMensajes((previos) => [...previos, { id: idMensaje(), autor: "analista", texto }])
       setPensando(true)
       setConfirmacion(null)
@@ -49,6 +50,19 @@ export function Detalle({ caso, alVolver, alCambiar }: { caso: string; alVolver:
           ...previos,
           { id: idMensaje(), autor: "agente", texto: respuesta.reply, toolCalls: respuesta.toolCalls },
         ])
+        // El servidor solo acepta una confirmación en el turno inmediatamente siguiente al
+        // que la generó. Si la analista pregunta algo antes de confirmar, el bloque
+        // desaparecía sin explicación y parecía un fallo de la interfaz.
+        if (pendiente && !actionId && !respuesta.needsConfirmation) {
+          setMensajes((previos) => [
+            ...previos,
+            {
+              id: idMensaje(),
+              autor: "sistema",
+              texto: `Tu mensaje interrumpió la confirmación que estaba pendiente de ${pendiente.caso} por ${pendiente.codigos.join(", ")}. Por seguridad esa confirmación solo vale en el turno inmediatamente siguiente al que la generó, así que ya no está activa y no se creó ninguna orden. Pídele al agente que vuelva a validar el caso y te propondrá una nueva.`,
+            },
+          ])
+        }
         setConfirmacion(respuesta.needsConfirmation ? respuesta.confirmacion : null)
         await recargarDetalle()
         alCambiar()
@@ -63,7 +77,7 @@ export function Detalle({ caso, alVolver, alCambiar }: { caso: string; alVolver:
         setPensando(false)
       }
     },
-    [alCambiar, caso, recargarDetalle],
+    [alCambiar, caso, confirmacion, recargarDetalle],
   )
 
   const sugerencias = useMemo(() => {
