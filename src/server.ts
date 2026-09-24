@@ -16,6 +16,7 @@ import type { MensajeModelo } from "./llm/adapter.ts"
 import { crearAdaptadorOpenAI } from "./llm/openai.ts"
 
 const directory = path.resolve(import.meta.dir, "..")
+const outDir = process.env.OUT_DIR ? path.resolve(process.env.OUT_DIR) : path.join(directory, "out")
 const puerto = Number(process.env.PORT ?? 3000)
 const maxIteraciones = Number(process.env.MAX_TOOL_ITERATIONS ?? 25)
 const maxTokens = Number(process.env.MAX_SESSION_TOKENS ?? 100000)
@@ -23,6 +24,7 @@ const maxHistorial = Number(process.env.MAX_HISTORY_CHARS ?? MAX_HISTORIAL_CARAC
 const maxMensaje = Number(process.env.MAX_MESSAGE_CHARS ?? 8000)
 const tokenAcceso = process.env.APP_ACCESS_TOKEN ?? ""
 const modelo = process.env.LLM_MODEL ?? "gpt-4.1-mini"
+const sinCache = { "cache-control": "no-store" }
 
 type Sesion = {
   id: string
@@ -34,7 +36,11 @@ type Sesion = {
 const sesiones = new Map<string, Sesion>()
 
 function archivoSesion(id: string): string {
-  return path.join(directory, "out", "sessions", `${id}.json`)
+  return path.join(outDir, "sessions", `${id}.json`)
+}
+
+function sitio() {
+  return ubicar(directory, { outDir })
 }
 
 function cargarSesion(id: string): Sesion | null {
@@ -76,21 +82,21 @@ Bun.serve({
       return Response.json({ ok: false, error: "Falta el token de acceso." }, { status: 401 })
     }
     if (request.method === "GET" && url.pathname === "/api/casos") {
-      return Response.json({ ok: true, casos: await resumenCasos(ubicar(directory)) })
+      return Response.json({ ok: true, casos: await resumenCasos(sitio()) }, { headers: sinCache })
     }
     if (request.method === "GET" && url.pathname.startsWith("/api/casos/")) {
       const resto = url.pathname.slice("/api/casos/".length)
       const [caso, seccion] = resto.split("/")
       if (!caso) return Response.json({ ok: false, error: "Falta el caso." }, { status: 400 })
       if (seccion === "evidencia") {
-        const evidencia = evidenciaDeCaso(ubicar(directory), caso)
+        const evidencia = evidenciaDeCaso(sitio(), caso)
         if (!evidencia.ok) return Response.json(evidencia, { status: 404 })
         return Response.json({ ok: true, sha256: evidencia.sha256, texto: evidencia.canonico })
       }
       if (seccion) return Response.json({ ok: false, error: "Ruta desconocida." }, { status: 404 })
-      const detalle = await detalleCaso(ubicar(directory), caso)
-      if (!detalle.ok) return Response.json(detalle, { status: 404 })
-      return Response.json({ ok: true, ...detalle.data })
+      const detalle = await detalleCaso(sitio(), caso)
+      if (!detalle.ok) return Response.json(detalle, { status: 404, headers: sinCache })
+      return Response.json({ ok: true, ...detalle.data }, { headers: sinCache })
     }
     if (request.method === "GET" && url.pathname.startsWith("/api/sessions/")) {
       const id = url.pathname.slice("/api/sessions/".length)
@@ -106,6 +112,9 @@ Bun.serve({
     // cliente que se equivocara de ruta recibía una página en vez de un error.
     if (url.pathname.startsWith("/api/")) {
       return Response.json({ ok: false, error: `No existe la ruta ${request.method} ${url.pathname}.` }, { status: 404 })
+    }
+    if (/^\/(fixtures|out|src|modulo|agent|test)(\/|$)/.test(url.pathname)) {
+      return new Response("No encontrado", { status: 404 })
     }
     if (request.method === "GET") return estatico(url.pathname)
     return new Response("No encontrado", { status: 404 })
@@ -138,6 +147,7 @@ async function chat(request: Request): Promise<Response> {
     directory,
     sessionId: sesion.id,
     turno: sesion.turno,
+    outDir,
     intentos: new Map(),
   }
   const avisos: string[] = []
@@ -182,7 +192,7 @@ async function prepararConfirmacion(
   sesion: Sesion,
   ctx: Contexto,
 ): Promise<{ ok: true; aviso: string } | { ok: false; error: string }> {
-  const ubicacion = ubicar(directory)
+  const ubicacion = sitio()
   const accion = leerAccion(ubicacion, actionId)
   if (!accion) return { ok: false, error: "No existe esa confirmación." }
   const paquete = leerPaquete(ubicacion, accion.caso)
@@ -207,7 +217,7 @@ function confirmacionVisible(
   sessionId: string,
   turno: number,
 ): { actionId: string; caso: string; codigos: string[]; vence_en: string } | null {
-  const ubicacion = ubicar(directory)
+  const ubicacion = sitio()
   const ruta = path.join(ubicacion.outDir, "confirmaciones.json")
   if (!existsSync(ruta)) return null
   const acciones = JSON.parse(readFileSync(ruta, "utf8")) as Array<{

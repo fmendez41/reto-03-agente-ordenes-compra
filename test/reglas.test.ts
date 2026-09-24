@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { leerPaquete } from "../src/core/paquete.ts"
 import { evaluarReglas } from "../src/core/reglas.ts"
+import { digitoVerificacionNit, nitsCoinciden } from "../src/core/texto.ts"
 import { cargarMaestros } from "../src/core/maestros.ts"
 import { copiaFixtures, escribir } from "./ayuda.ts"
 import type { Paquete, Solicitud } from "../src/core/types.ts"
@@ -185,7 +186,7 @@ describe("reglas aisladas", () => {
     const alterado: Paquete = {
       ...paquete.data,
       solicitud: clonarSolicitud(paquete.data.solicitud, {
-        proveedor_nombre: "Doble Casa S.A.S.",
+        proveedor_nombre: "Doble Casa",
         proveedor_nit: undefined,
       }),
     }
@@ -198,6 +199,51 @@ describe("reglas aisladas", () => {
     expect(rc1?.estado).toBe("bloquea")
     expect(rc1?.detalle).toContain("varios")
     limpiar()
+  })
+
+  test("RC5 bloquea si el total de la solicitud es cero", () => {
+    const { ubicacion, limpiar } = copiaFixtures()
+    const paquete = leerPaquete(ubicacion, "sol-001")
+    if (!paquete.ok || !paquete.data.solicitud) throw new Error("paquete")
+    const maestros = cargarMaestros(ubicacion)
+    if (!maestros.ok) throw new Error(maestros.error)
+    const resultado = evaluarReglas(
+      { ...paquete.data, solicitud: clonarSolicitud(paquete.data.solicitud, { valor_total: 0, cantidad: 0 }) },
+      maestros.data,
+    )
+    if ("ok" in resultado) throw new Error(resultado.error)
+    expect(resultado.evaluaciones.find((item) => item.regla === "RC5")?.estado).toBe("bloquea")
+    limpiar()
+  })
+
+  test("el nombre exacto gana y el normalizado ambiguo bloquea", () => {
+    const { ubicacion, limpiar } = copiaFixtures()
+    escribir(
+      ubicacion,
+      "maestros/proveedores.json",
+      JSON.stringify([
+        { codigo_sap: "1", nit: "1", nombre: "Doble Casa S.A.S.", condiciones_pago_default: "Z030", indicador_iva_default: "C1", activo: true },
+        { codigo_sap: "2", nit: "2", nombre: "Doble Casa Ltda.", condiciones_pago_default: "Z030", indicador_iva_default: "C1", activo: true },
+      ]),
+    )
+    const paquete = leerPaquete(ubicacion, "sol-006")
+    if (!paquete.ok || !paquete.data.solicitud) throw new Error("paquete")
+    const maestros = cargarMaestros(ubicacion)
+    if (!maestros.ok) throw new Error(maestros.error)
+    const exacto = evaluarReglas(
+      { ...paquete.data, solicitud: { ...paquete.data.solicitud, proveedor_nombre: "Doble Casa S.A.S.", proveedor_nit: undefined } },
+      maestros.data,
+    )
+    if ("ok" in exacto) throw new Error(exacto.error)
+    expect(exacto.derivados.proveedor?.codigo_sap).toBe("1")
+    limpiar()
+  })
+
+  test("un NIT con dígito de verificación coincide con el maestro", () => {
+    const dv = digitoVerificacionNit("900555111")
+    expect(dv).toBeTruthy()
+    expect(nitsCoinciden("900555111", `900555111${dv}`)).toBe(true)
+    expect(nitsCoinciden("900.555.111-2", "900555111")).toBe(true)
   })
 
   test("sin la palabra Aprobado bloquea RC2", () => {

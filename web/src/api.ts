@@ -11,7 +11,7 @@ function cabeceras(): Record<string, string> {
 async function pedir<T>(ruta: string, init?: RequestInit): Promise<T> {
   let respuesta: Response
   try {
-    respuesta = await fetch(ruta, { ...init, headers: cabeceras() })
+    respuesta = await fetch(ruta, { ...init, cache: "no-store", headers: cabeceras() })
   } catch {
     throw new Error("No hubo respuesta del servidor. Revisa que siga levantado.")
   }

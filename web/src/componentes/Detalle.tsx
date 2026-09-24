@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { enviarMensaje, traerDetalle } from "../api.ts"
+import type { CambioFase } from "../lib/bandeja.ts"
 import { dinero } from "../lib/formato.ts"
 import type { Confirmacion, DetalleCaso, Mensaje } from "../tipos.ts"
 import { Chat } from "./Chat.tsx"
@@ -15,22 +16,53 @@ function idMensaje(): string {
   return Math.random().toString(36).slice(2)
 }
 
-export function Detalle({ caso, alVolver, alCambiar }: { caso: string; alVolver: () => void; alCambiar: () => void }) {
+export function Detalle({
+  caso,
+  alVolver,
+  alCambiar,
+  pedido,
+  alConsumirPedido,
+}: {
+  caso: string
+  alVolver: () => void
+  alCambiar: (cambio: CambioFase) => void
+  pedido?: { id: number; texto: string } | null
+  alConsumirPedido?: () => void
+}) {
   const [detalle, setDetalle] = useState<DetalleCaso | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [mensajes, setMensajes] = useState<Mensaje[]>([])
   const [pensando, setPensando] = useState(false)
   const [confirmacion, setConfirmacion] = useState<Confirmacion | null>(null)
   const sesion = useRef(localStorage.getItem(claveSesion(caso)) ?? "")
+  const pedidoHecho = useRef<number | null>(null)
+  const ocupado = useRef(false)
 
-  const recargarDetalle = useCallback(async () => {
+  const recargarDetalle = useCallback(async (): Promise<DetalleCaso | null> => {
     try {
-      setDetalle(await traerDetalle(caso))
+      const fresco = await traerDetalle(caso)
+      setDetalle(fresco)
       setError(null)
+      return fresco
     } catch (fallo) {
       setError(fallo instanceof Error ? fallo.message : "No pude leer el caso.")
+      return null
     }
   }, [caso])
+
+  const publicarFase = useCallback(
+    (fresco: DetalleCaso) => {
+      alCambiar({
+        caso,
+        numero_oc: fresco.numero_oc,
+        estado: fresco.validacion.estado,
+        retroactiva: fresco.validacion.retroactiva,
+        bloqueos: fresco.validacion.bloqueos,
+        confirmaciones: fresco.validacion.confirmaciones,
+      })
+    },
+    [alCambiar, caso],
+  )
 
   useEffect(() => {
     void recargarDetalle()
@@ -38,6 +70,8 @@ export function Detalle({ caso, alVolver, alCambiar }: { caso: string; alVolver:
 
   const conversar = useCallback(
     async (texto: string, actionId?: string | null) => {
+      if (ocupado.current) return
+      ocupado.current = true
       const pendiente = confirmacion
       setMensajes((previos) => [...previos, { id: idMensaje(), autor: "analista", texto }])
       setPensando(true)
@@ -64,21 +98,30 @@ export function Detalle({ caso, alVolver, alCambiar }: { caso: string; alVolver:
           ])
         }
         setConfirmacion(respuesta.needsConfirmation ? respuesta.confirmacion : null)
-        await recargarDetalle()
-        alCambiar()
+        const fresco = await recargarDetalle()
+        if (fresco) publicarFase(fresco)
       } catch (fallo) {
         const mensaje = fallo instanceof Error ? fallo.message : "No pude completar el turno."
         const texto = actionId
           ? `${mensaje} No se creó ninguna orden. Pídele al agente que vuelva a revisar ${caso} para obtener una confirmación nueva.`
           : mensaje
         setMensajes((previos) => [...previos, { id: idMensaje(), autor: "sistema", texto }])
-        await recargarDetalle()
+        const fresco = await recargarDetalle()
+        if (fresco) publicarFase(fresco)
       } finally {
+        ocupado.current = false
         setPensando(false)
       }
     },
-    [alCambiar, caso, confirmacion, recargarDetalle],
+    [caso, confirmacion, publicarFase, recargarDetalle],
   )
+
+  useEffect(() => {
+    if (!pedido || pedidoHecho.current === pedido.id) return
+    pedidoHecho.current = pedido.id
+    alConsumirPedido?.()
+    void conversar(pedido.texto)
+  }, [alConsumirPedido, conversar, pedido])
 
   const sugerencias = useMemo(() => {
     if (!detalle) return []

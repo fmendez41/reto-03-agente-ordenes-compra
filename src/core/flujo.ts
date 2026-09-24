@@ -212,7 +212,7 @@ export async function procesarCaso(
   if (estado === "PENDIENTE_CONFIRMACION" && opciones.confirmar) {
     const accion = validado.data.accion as { actionId?: string } | null
     actionId = accion?.actionId
-    flushContexto(ctx)
+    for (const intento of ctx.intentos?.values() ?? []) intento.flushed = true
     ctxCrear = contexto(ubicacion, sessionId, turno + 1, actionId)
   }
 

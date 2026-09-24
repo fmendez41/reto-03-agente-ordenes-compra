@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { readFileSync } from "node:fs"
+import { tmpdir } from "node:os"
 import path from "node:path"
 import { contextoDelCaso } from "../src/agent/contexto.ts"
 import { ejecutarTurno, podarHistorial, redactar } from "../src/agent/loop.ts"
@@ -43,11 +44,28 @@ describe("adaptador", () => {
       directory: RAIZ,
       adapter: adaptador,
       historial: [],
-      ctx: { directory: RAIZ, sessionId: "s", turno: 1, outDir: path.join(RAIZ, "out-test-tope"), intentos: new Map() },
+      ctx: { directory: RAIZ, sessionId: "s", turno: 1, outDir: path.join(tmpdir(), "oc-tope"), intentos: new Map() },
       maxIteraciones: 1,
     })
     expect(resultado.reply).toContain("tope")
     expect(resultado.toolCalls).toHaveLength(1)
+  })
+
+  test("el timeout y el fallo del proveedor se explican sin la clave", async () => {
+    const lento = crearAdaptadorOpenAI({
+      apiKey: "sk-testsecreto123456",
+      model: "gpt-4.1-mini",
+      timeoutMs: 15,
+      fetchImpl: () => new Promise(() => {}),
+    })
+    await expect(lento.enviar([], [])).rejects.toThrow(/tardó demasiado/)
+    const caido = crearAdaptadorOpenAI({
+      apiKey: "sk-testsecreto123456",
+      model: "gpt-4.1-mini",
+      timeoutMs: 1000,
+      fetchImpl: async () => new Response("sk-testsecreto123456", { status: 502 }),
+    })
+    await expect(caido.enviar([], [])).rejects.toThrow(/proveedor respondió 502/)
   })
 })
 

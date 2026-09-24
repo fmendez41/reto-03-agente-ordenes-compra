@@ -35,6 +35,13 @@ describe("cotización", () => {
     const parsed = parsearCotizacion("Proveedor: X\nNIT: 1\n")
     expect(parsed.ok).toBe(false)
   })
+
+  test("rechaza una cotización con dos totales", () => {
+    const parsed = parsearCotizacion("Proveedor: X\nNIT: 1\nTOTAL (IVA incluido): 10 COP\nTOTAL (IVA incluido): 20 COP\n")
+    expect(parsed.ok).toBe(false)
+    if (parsed.ok) return
+    expect(parsed.error).toContain("más de un")
+  })
 })
 
 describe("factura", () => {

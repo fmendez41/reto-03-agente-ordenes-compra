@@ -1,5 +1,6 @@
 import { cargarMaestros } from "./maestros.ts"
-import { fechaCalendario, formatoMonto, normalizarNit, normalizarNombre } from "./texto.ts"
+import { fechaCalendario, formatoMonto, nitsCoinciden, normalizarNit, normalizarNombre } from "./texto.ts"
+import type { ProveedorMaestro } from "./types.ts"
 import type { Evaluacion, Maestros, Paquete, Ubicacion, Validacion } from "./types.ts"
 import { decidirUnidad } from "./unidad.ts"
 
@@ -24,10 +25,8 @@ export function evaluarReglas(paquete: Paquete, maestros: Maestros): Validacion 
 
   const evaluaciones: Evaluacion[] = []
   const nit = solicitud.proveedor_nit ? normalizarNit(solicitud.proveedor_nit) : null
-  const nombre = normalizarNombre(solicitud.proveedor_nombre)
-  const porNit = nit ? maestros.proveedores.filter((item) => normalizarNit(item.nit) === nit) : []
-  const porNombre = maestros.proveedores.filter((item) => normalizarNombre(item.nombre) === nombre)
-  const candidatos = nit ? porNit : porNombre
+  const porNit = nit ? maestros.proveedores.filter((item) => nitsCoinciden(item.nit, nit)) : []
+  const candidatos = nit ? porNit : candidatosPorNombre(maestros.proveedores, solicitud.proveedor_nombre)
 
   let proveedor = candidatos.length === 1 ? candidatos[0] : null
   if (candidatos.length === 0) {
@@ -400,6 +399,14 @@ export function evaluarReglas(paquete: Paquete, maestros: Maestros): Validacion 
       unidad: { valor: unidad.unidad, fuente: unidad.fuente },
     },
   }
+}
+
+function candidatosPorNombre(proveedores: ProveedorMaestro[], nombre: string): ProveedorMaestro[] {
+  const pedido = nombre.trim().toLocaleLowerCase("es")
+  const exactos = proveedores.filter((item) => item.nombre.trim().toLocaleLowerCase("es") === pedido)
+  if (exactos.length > 0) return exactos
+  const normalizado = normalizarNombre(nombre)
+  return proveedores.filter((item) => normalizarNombre(item.nombre) === normalizado)
 }
 
 export function validarCaso(

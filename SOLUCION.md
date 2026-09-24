@@ -16,7 +16,9 @@ La interfaz es React con Vite en `web/`, compilada a `web/dist`. Es una capa de 
 
 Cada turno arma el historial, llama al adaptador y, si hay tool calls, valida los argumentos con zod, ejecuta la herramienta y devuelve el JSON al modelo. El tope es `MAX_TOOL_ITERATIONS` (25). Al llegar, el agente resume lo obtenido y lo que falta, sin otra llamada al modelo.
 
-La confirmación no la decide el modelo. Si la validación queda en `PENDIENTE_CONFIRMACION`, el core crea una acción con `actionId`, caso, hash del payload, códigos, sesión y turno. El botón envía ese `actionId`. El servidor comprueba sesión, estado pendiente, caducidad de 15 minutos, turno inmediatamente siguiente y hash recalculado. Solo entonces inyecta la acción en el contexto. `oc_crear` vuelve a comprobarla y, además, rechaza un payload que no coincida con el recalculado. El argumento `confirmado` no autoriza nada.
+Si la validación queda en `LISTA_PARA_CREAR` y la analista no pidió que no se cree, el prompt exige armar, firmar y crear en ese mismo turno. No hay confirmación que pedir.
+
+La confirmación no la decide el modelo. Si la validación queda en `PENDIENTE_CONFIRMACION`, el core crea una acción con `actionId`, caso, hash del payload, códigos, sesión y turno. El botón envía ese `actionId`. El servidor comprueba sesión, estado pendiente, caducidad de 15 minutos, turno inmediatamente siguiente y hash recalculado. Solo entonces inyecta la acción en el contexto. `oc_crear` vuelve a comprobarla y, además, rechaza un payload que no coincida con el recalculado. El argumento `confirmado` no autoriza nada. Si el modelo no crea en ese turno, la acción no se corre al siguiente: hay que validar de nuevo.
 
 `out/control.csv` lo escribe `flushIntento` una vez por `(sesión, turno, caso)` al cerrar el turno, no cada herramienta. Resultados: `CREADA`, `IDEMPOTENTE`, `BLOQUEADA`, `PENDIENTE_CONFIRMACION`, `ERROR`.
 
@@ -30,7 +32,7 @@ Estimación por caso feliz, no una medición de factura: del orden de 8.000 toke
 
 | Regla | Implementación | Dificultad |
 |---|---|---|
-| RC1 | NIT normalizado; si no hay NIT, nombre sin sufijo societario. Cero o varios candidatos, o inactivo, bloquean. | El nombre: `S.A.S.` queda como tres letras y hay que quitar el sufijo como frase. |
+| RC1 | NIT con o sin dígito de verificación. Si no hay NIT, primero el nombre exacto y, si no hay, el normalizado. Cero o varios candidatos, o inactivo, bloquean. | El nombre: un empate exacto no se resuelve por el sufijo, y el fallback normalizado falla si hay más de un candidato. |
 | RC2 | Existe aprobación, contiene "aprobado" y el remitente está en el centro. | Distinguir "no es de este centro" de "no hay centro". |
 | RC3 | Solo si RC2 halló aprobador. Si no, `no_evaluable`, sin segundo bloqueo. | No marcarla como cumplida en `sol-003`. |
 | RC4 | La subárea pertenece al centro. | Directa. |
@@ -87,7 +89,7 @@ En los fixtures hay un caso retroactivo de seis. Es un caso de prueba, no una me
 - RC5 con total cero bloquea en vez de confirmar. El enunciado define la regla como una diferencia porcentual, y con denominador cero no hay porcentaje que calcular. Interpreto que un total en cero es un dato malo de la solicitud, no una discrepancia que la analista pueda evaluar mirando dos cifras.
 - RC5 con monedas distintas pide confirmación y no compara. Restar 25.000.000 COP de 25.000.000 USD da cero, que es el peor resultado posible: el control pasaría sin haber comprobado nada. El sistema no convierte divisas ni asume una tasa.
 - `sol-003` bloquea por RC2, no por RC3. El aprobador no figura en el centro, así que no hay tope contra el cual comparar el monto y RC3 queda `no_evaluable`. Contarla como dos bloqueos sugeriría dos problemas distintos cuando hay uno solo, y le daría a la analista dos cosas que arreglar en vez de una.
-- El demo no aísla su salida en otro directorio por defecto, aunque borrar `out/` entero era un problema real. Las secciones 3, 5 y 7 del enunciado fijan las rutas de los artefactos en `out/sap/ordenes.jsonl`, `out/<caso>/` y `out/control.csv`, y la sección 8 pide que `out/` se limpie al inicio. Mover la salida rompería las rutas documentadas. La solución es borrar solo lo que el demo produce y conservar `out/sessions/` y `out/confirmaciones.json`, que es lo que realmente se estaba perdiendo. `DEMO_OUT_DIR` deja el aislamiento total disponible para quien lo quiera.
+- El demo escribe en `out-demo/` y se niega a usar `out/`. El servidor usa `out/` o `OUT_DIR`. Las pruebas usan un temporal. Así `demo.ts` no borra la sesión de una aplicación en ejecución. Las rutas relativas (`sap/ordenes.jsonl`, `<caso>/`, `control.csv`) se mantienen dentro de cada carpeta.
 
 ## 10. Cobertura
 
@@ -105,6 +107,7 @@ En los fixtures hay un caso retroactivo de seis. Es un caso de prueba, no una me
 | Lectura con lector de pantalla | Hecho en lo esencial | Recorrido completo con NVDA o JAWS y orden de foco revisado tras cada confirmación. |
 | Despliegue público | Hecho en Render | Un plan con disco persistente y sin suspensión si esto deja de ser una demo. |
 | `oc_leer_excel` | No hecho | Solo si el canal real sigue siendo xlsx. |
+| Bonus `modulo/` | Parcial | El prompt y el conocimiento coinciden con la aplicación, y las herramientas reexportan `src/core` sin importar el servidor. Copiar solo `modulo/` a otro directorio no arranca: el código vive en `src/core` para no tener dos copias. |
 
 ## 11. Uso de IA
 

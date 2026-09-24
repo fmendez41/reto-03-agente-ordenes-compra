@@ -40,9 +40,18 @@ bun demo.ts
 
 `bun test` no necesita clave. `demo.ts` recorre los seis casos, repite `sol-001` (idempotencia) y crea `sol-004`, `sol-005` y `sol-006` solo después de emitir y consumir una confirmación.
 
-Para ser determinista, el demo arranca borrando lo que él mismo produce dentro de `out/`, pero respeta `out/sessions/` y `out/confirmaciones.json` para no tumbar la conversación de quien esté usando la aplicación. Con `DEMO_OUT_DIR=out-demo bun demo.ts` escribe en otra carpeta y no toca `out/` en absoluto.
+El demo escribe en `out-demo/` y lo limpia al empezar. No toca `out/`, que es la carpeta del servidor. Si `DEMO_OUT_DIR` apunta a `out/`, el demo se niega a correr. Las pruebas usan un directorio temporal propio.
 
-Las 64 pruebas cubren las diez reglas, los parsers, los límites de seguridad, el protocolo de confirmación, la construcción del payload, el recorrido completo, la frontera de módulos, la persistencia del historial entre turnos, el renderizado de markdown y la bandeja con su capa de formato.
+Para empezar la defensa con estado limpio, con el servidor apagado:
+
+```bash
+bun run estado-limpio
+bun run dev
+```
+
+`estado-limpio` no borra `out/` si hay un servidor respondiendo en el puerto. El servidor usa `OUT_DIR` si se define; si no, `out/`.
+
+Las pruebas cubren las diez reglas, los parsers, el acceso con y sin token, el chat de `sol-001`, los límites de seguridad, el protocolo de confirmación, la construcción del payload, el recorrido completo, la frontera del módulo, la persistencia del historial, el markdown y la bandeja.
 
 ## Variables
 
@@ -55,9 +64,10 @@ Las 64 pruebas cubren las diez reglas, los parsers, los límites de seguridad, e
 | `MAX_SESSION_TOKENS` | Tope aproximado por sesión. |
 | `MAX_MESSAGE_CHARS` | Tamaño máximo del mensaje. |
 | `MAX_HISTORY_CHARS` | Tope del historial que viaja al modelo. Por defecto 120.000 caracteres. Al pasarse se podan los turnos más viejos. |
-| `APP_ACCESS_TOKEN` | Si existe, `POST /api/chat` exige `Authorization: Bearer`. |
+| `APP_ACCESS_TOKEN` | Si existe, toda la API excepto `GET /api/health` exige `Authorization: Bearer`. |
 | `PORT` | Puerto HTTP. Por defecto 3000. |
-| `DEMO_OUT_DIR` | Solo para `bun demo.ts`: carpeta de salida alterna. |
+| `OUT_DIR` | Carpeta de salida del servidor. Por defecto `out/`. |
+| `DEMO_OUT_DIR` | Carpeta del demo. Por defecto `out-demo/`. No puede ser `out/`. |
 
 ## API
 
@@ -76,7 +86,7 @@ El servicio público está en [https://agente-oc.onrender.com](https://agente-oc
 
 `https://agente-oc.onrender.com/?token=RbjdbO%2B1%2FyL925df7kA6qxHVWHMy0RMekCa9G5V29G8%3D`
 
-Ese token no es la clave del modelo. Sin él, la bandeja carga pero el chat y la API responden 401.
+Ese token no es la clave del modelo. Sin él, la página abre pero `/api/casos`, `/api/chat` y `/api/sessions` responden 401. Solo `/api/health` es público, y no incluye la clave ni rutas internas.
 
 Hay `Dockerfile` y `render.yaml`. El blueprint crea un servicio Docker con health check en `/api/health`, genera `APP_ACCESS_TOKEN` solo y deja `LLM_API_KEY` marcada como `sync: false`: hay que cargarla a mano en el panel del servicio. La clave nunca entra en la imagen ni en el repositorio.
 

@@ -5,7 +5,11 @@ import { procesarCaso } from "./src/core/flujo.ts"
 const directory = path.resolve(import.meta.dir)
 const outDir = process.env.DEMO_OUT_DIR
   ? path.resolve(directory, process.env.DEMO_OUT_DIR)
-  : path.join(directory, "out")
+  : path.join(directory, "out-demo")
+
+if (path.resolve(outDir) === path.join(directory, "out")) {
+  throw new Error("demo.ts no escribe en out/: esa carpeta es del servidor. Usa el directorio por defecto out-demo o define DEMO_OUT_DIR con otra ruta.")
+}
 
 limpiarSalida(outDir)
 

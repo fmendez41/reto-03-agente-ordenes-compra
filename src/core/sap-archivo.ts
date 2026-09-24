@@ -2,7 +2,7 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs"
 import path from "node:path"
 import type { SapAdapter } from "../sap/adapter.ts"
 import { cargarMaestros } from "./maestros.ts"
-import { normalizarNit } from "./texto.ts"
+import { nitsCoinciden } from "./texto.ts"
 import type { OrdenCompra, Ubicacion } from "./types.ts"
 
 export type { SapAdapter }
@@ -14,6 +14,17 @@ type OrdenGuardada = {
 }
 
 const INICIO = 4500000001
+const colas = new Map<string, Promise<unknown>>()
+
+export function excluirReferencia<T>(solicitudId: string, trabajo: () => Promise<T>): Promise<T> {
+  const previa = colas.get(solicitudId) ?? Promise.resolve()
+  const siguiente = previa.then(trabajo, trabajo)
+  const registro = siguiente.finally(() => {
+    if (colas.get(solicitudId) === registro) colas.delete(solicitudId)
+  })
+  colas.set(solicitudId, registro)
+  return siguiente
+}
 
 function archivo(ubicacion: Ubicacion): string {
   return path.join(ubicacion.outDir, "sap", "ordenes.jsonl")
@@ -34,12 +45,12 @@ export function crearSapArchivo(ubicacion: Ubicacion): SapAdapter {
     async consultarProveedor(nit: string) {
       const maestros = cargarMaestros(ubicacion)
       if (!maestros.ok) return null
-      const encontrado = maestros.data.proveedores.find((item) => normalizarNit(item.nit) === normalizarNit(nit))
+      const encontrado = maestros.data.proveedores.find((item) => nitsCoinciden(item.nit, nit))
       return encontrado ? { codigo_sap: encontrado.codigo_sap, activo: encontrado.activo } : null
     },
     async buscarOrdenPorReferencia(solicitudId) {
       const encontrada = leerOrdenes(ubicacion).find((item) => item.orden.referencia.solicitud_id === solicitudId)
-      return encontrada ? { numero_oc: encontrada.numero_oc, fecha: encontrada.fecha } : null
+      return encontrada ? { numero_oc: encontrada.numero_oc } : null
     },
     async crearOrden(orden) {
       const existentes = leerOrdenes(ubicacion)

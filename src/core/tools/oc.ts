@@ -6,7 +6,7 @@ import { construirOrden, guardarTrazabilidad, hashPayload, ordenCompraSchema } f
 import { leerPaquete } from "../paquete.ts"
 import { validarCaso } from "../reglas.ts"
 import { ubicar } from "../rutas.ts"
-import { crearSapArchivo } from "../sap-archivo.ts"
+import { crearSapArchivo, excluirReferencia, leerOrdenes } from "../sap-archivo.ts"
 import type { OrdenCompra, Ubicacion } from "../types.ts"
 
 export type Contexto = {
@@ -221,6 +221,7 @@ export const crear: Definicion = {
       }
       const solicitudId = paquete.data.solicitud?.solicitud_id
       if (!solicitudId) return fallo("No hay solicitud para crear la orden.")
+      return excluirReferencia(solicitudId, async () => {
       const sap = crearSapArchivo(ubicacion)
       const existente = await sap.buscarOrdenPorReferencia(solicitudId)
       if (existente) {
@@ -228,7 +229,8 @@ export const crear: Definicion = {
         intento.solicitudId = solicitudId
         intento.numeroOc = existente.numero_oc
         intento.resultado = "IDEMPOTENTE"
-        return ok({ numero_oc: existente.numero_oc, fecha: existente.fecha, idempotente: true })
+        const guardada = leerOrdenes(ubicacion).find((item) => item.numero_oc === existente.numero_oc)
+        return ok({ numero_oc: existente.numero_oc, fecha: guardada?.fecha ?? "", idempotente: true })
       }
       const validacion = validarCaso(ubicacion, paquete.data)
       if (!validacion.ok) return fallo(validacion.error)
@@ -296,7 +298,8 @@ export const crear: Definicion = {
         numero_oc: creada.numero_oc,
         fecha: creada.fecha,
         idempotente: false,
-        evidencia: { ruta: evidencia.ruta, sha256: evidencia.sha256, pdf: pdf.ruta, aviso: pdf.aviso },
+        evidencia: { ruta: evidencia.ruta, sha256: evidencia.sha256, pdf: pdf.ruta,         aviso: pdf.aviso },
+      })
       })
     })
   },

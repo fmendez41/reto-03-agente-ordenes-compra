@@ -3,7 +3,6 @@ import path from "node:path"
 import { z } from "zod"
 import type { HerramientaJson, LlmAdapter, MensajeModelo } from "../llm/adapter.ts"
 import { nombreRegla } from "../core/catalogo-reglas.ts"
-import { rearmarAccion } from "../core/confirmacion.ts"
 import { flushContexto, herramientas, type Contexto, type Definicion } from "../core/tools/oc.ts"
 import { ubicar } from "../core/rutas.ts"
 
@@ -137,7 +136,7 @@ async function ejecutarLlamada(
   let args: Record<string, unknown> = {}
   try {
     const crudo = JSON.parse(argumentos) as unknown
-    args = z.object(definicion.args).parse(crudo) as Record<string, unknown>
+    args = z.object(definicion.args).strict().parse(crudo) as Record<string, unknown>
   } catch {
     const error = "Los argumentos no cumplen el esquema."
     registrar(directory, ctx, nombre, argumentos, false, error)
@@ -251,11 +250,8 @@ export function redactar(texto: string): string {
   return texto.replace(/sk-[A-Za-z0-9_-]{8,}/g, "[redactado]").replace(/Bearer\s+\S+/gi, "Bearer [redactado]")
 }
 
-export function cerrarTurno(ctx: Contexto, consumida: boolean): void {
+export function cerrarTurno(ctx: Contexto, _consumida: boolean): void {
   flushContexto(ctx)
-  if (!consumida && ctx.actionId) {
-    rearmarAccion(ubicar(ctx.directory, { fixturesDir: ctx.fixturesDir, outDir: ctx.outDir }), ctx.actionId, ctx.turno ?? 1)
-  }
 }
 
 function parametros(args: Record<string, z.ZodType>): Record<string, unknown> {

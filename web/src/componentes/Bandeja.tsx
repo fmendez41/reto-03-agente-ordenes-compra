@@ -1,9 +1,11 @@
-import { useMemo, useState } from "react"
+import { useMemo } from "react"
+import type { FiltroBandeja } from "../lib/soporte.ts"
 import { dinero } from "../lib/formato.ts"
 import type { FilaBandeja } from "../tipos.ts"
 import { EtiquetaEstado, EtiquetaRetroactiva } from "./Etiqueta.tsx"
+import { Panorama } from "./Panorama.tsx"
 
-type Filtro = "TODOS" | "LISTA_PARA_CREAR" | "PENDIENTE_CONFIRMACION" | "BLOQUEADA" | "CREADA"
+type Filtro = FiltroBandeja
 
 const FILTROS: Array<{ id: Filtro; etiqueta: string }> = [
   { id: "TODOS", etiqueta: "Todas" },
@@ -11,6 +13,7 @@ const FILTROS: Array<{ id: Filtro; etiqueta: string }> = [
   { id: "PENDIENTE_CONFIRMACION", etiqueta: "Requieren confirmación" },
   { id: "BLOQUEADA", etiqueta: "Bloqueadas" },
   { id: "CREADA", etiqueta: "Con orden creada" },
+  { id: "ERROR", etiqueta: "Con error" },
 ]
 
 function motivoDe(fila: FilaBandeja): string | null {
@@ -24,34 +27,26 @@ function motivoDe(fila: FilaBandeja): string | null {
   return `${primera.regla}: ${primera.detalle}${extra}`
 }
 
-function plural(cantidad: number, singular: string, plural: string): string {
-  return `${cantidad} ${cantidad === 1 ? singular : plural}`
-}
-
 export function Bandeja({
   casos,
   cargando,
   error,
   alAbrir,
+  filtro,
+  alFiltrar,
 }: {
   casos: FilaBandeja[]
   cargando: boolean
   error: string | null
   alAbrir: (caso: string) => void
+  filtro: Filtro
+  alFiltrar: (filtro: Filtro) => void
 }) {
-  const [filtro, setFiltro] = useState<Filtro>("TODOS")
 
   const visibles = useMemo(
     () => (filtro === "TODOS" ? casos : casos.filter((fila) => fila.estado === filtro)),
     [casos, filtro],
   )
-
-  const conteo = useMemo(() => {
-    const pendientes = casos.filter((fila) => fila.estado === "PENDIENTE_CONFIRMACION").length
-    const bloqueadas = casos.filter((fila) => fila.estado === "BLOQUEADA").length
-    const retroactivas = casos.filter((fila) => fila.retroactiva).length
-    return { pendientes, bloqueadas, retroactivas }
-  }, [casos])
 
   if (cargando) {
     return <p className="vacio">Cargando las solicitudes…</p>
@@ -79,12 +74,8 @@ export function Bandeja({
 
   return (
     <>
+      <Panorama casos={casos} filtro={filtro} alFiltrar={alFiltrar} />
       <div className="bandeja-barra">
-        <p className="cabecera-meta">
-          {plural(casos.length, "solicitud", "solicitudes")} · {plural(conteo.pendientes, "espera", "esperan")} tu
-          confirmación · {plural(conteo.bloqueadas, "bloqueada", "bloqueadas")} ·{" "}
-          {plural(conteo.retroactivas, "retroactiva", "retroactivas")}
-        </p>
         <div className="filtros" role="group" aria-label="Filtrar por estado">
           {FILTROS.map((opcion) => (
             <button
@@ -92,7 +83,7 @@ export function Bandeja({
               type="button"
               className="filtro"
               aria-pressed={filtro === opcion.id}
-              onClick={() => setFiltro(opcion.id)}
+              onClick={() => alFiltrar(opcion.id)}
             >
               {opcion.etiqueta}
             </button>

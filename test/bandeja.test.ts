@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, test } from "bun:test"
 import { CATALOGO_REGLAS, fichaRegla, nombreRegla } from "../src/core/catalogo-reglas.ts"
-import { detalleCaso, listarCasos, resumenCasos } from "../src/core/flujo.ts"
+import { detalleCaso, listarCasos, procesarCaso, resumenCasos } from "../src/core/flujo.ts"
 import { dinero, etiquetaEstado, etiquetaRegla, fecha, fuenteLegible, numero, unidad } from "../web/src/lib/formato.ts"
 import { copiaFixtures } from "./ayuda.ts"
 
@@ -31,6 +31,19 @@ describe("bandeja", () => {
     const retroactiva = filas.find((fila) => fila.caso === "sol-005")
     expect(retroactiva?.retroactiva).toBe(true)
     expect(retroactiva?.estado).toBe("PENDIENTE_CONFIRMACION")
+  })
+
+  test("después de crear la orden, la bandeja deja el caso en CREADA", async () => {
+    const copia = copiaFixtures()
+    try {
+      const creada = await procesarCaso("sol-001", { ...copia.ubicacion, sessionId: "bandeja", turno: 1 })
+      const filas = await resumenCasos(copia.ubicacion)
+      const fila = filas.find((item) => item.caso === "sol-001")
+      expect(fila?.estado).toBe("CREADA")
+      expect(fila?.numero_oc).toBe(creada.numero_oc)
+    } finally {
+      copia.limpiar()
+    }
   })
 
   test("el detalle trae reglas, catálogos y evidencia sin tocar el disco de salida", async () => {

@@ -21,11 +21,12 @@ function celdasDe(codigo: string, detalle: DetalleCaso | null): Celda[] {
     if (!cotizacion) {
       return [{ rotulo: "Cotización", valor: "No llegó con el paquete" }]
     }
-    const diferencia = Math.abs(cotizacion.total - solicitud.valor_total) / solicitud.valor_total
+    const diferencia =
+      solicitud.valor_total === 0 ? null : Math.abs(cotizacion.total - solicitud.valor_total) / solicitud.valor_total
     return [
       { rotulo: "Dice la solicitud", valor: dinero(solicitud.valor_total, moneda) },
       { rotulo: "Dice la cotización", valor: dinero(cotizacion.total, moneda) },
-      { rotulo: "Diferencia", valor: `${porcentaje(diferencia)} (el límite es 2 %)` },
+      { rotulo: "Diferencia", valor: diferencia === null ? "No calculable" : `${porcentaje(diferencia)} (el límite es 2 %)` },
     ]
   }
 

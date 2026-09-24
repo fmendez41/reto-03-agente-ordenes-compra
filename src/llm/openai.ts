@@ -18,7 +18,8 @@ export function crearAdaptadorOpenAI(opciones: Opciones): LlmAdapter {
       const controlador = new AbortController()
       const temporizador = setTimeout(() => controlador.abort(), opciones.timeoutMs)
       try {
-        const respuesta = await fetchImpl("https://api.openai.com/v1/chat/completions", {
+        const respuesta = await Promise.race([
+          fetchImpl("https://api.openai.com/v1/chat/completions", {
           method: "POST",
           signal: controlador.signal,
           headers: {
@@ -37,7 +38,15 @@ export function crearAdaptadorOpenAI(opciones: Opciones): LlmAdapter {
               },
             })),
           }),
-        })
+          }),
+          new Promise<Response>((_resolve, reject) => {
+            controlador.signal.addEventListener("abort", () => {
+              const abortado = new Error("abort")
+              abortado.name = "AbortError"
+              reject(abortado)
+            })
+          }),
+        ])
         if (!respuesta.ok) {
           throw new Error(`El proveedor respondió ${respuesta.status}. Intenta de nuevo en unos segundos.`)
         }

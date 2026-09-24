@@ -1,7 +1,32 @@
+const PESOS_NIT = [3, 7, 13, 17, 19, 23, 29, 37, 41, 43, 47, 53, 59, 67, 71]
+
+export function digitoVerificacionNit(base: string): string | null {
+  if (!/^\d{5,15}$/.test(base)) return null
+  const digitos = [...base].reverse()
+  let suma = 0
+  for (let i = 0; i < digitos.length; i++) {
+    const peso = PESOS_NIT[i]
+    const digito = digitos[i]
+    if (peso === undefined || digito === undefined) return null
+    suma += Number(digito) * peso
+  }
+  const residuo = suma % 11
+  return String(residuo > 1 ? 11 - residuo : residuo)
+}
+
 export function normalizarNit(valor: string): string {
-  const sinPuntos = valor.replace(/\./g, "").replace(/\s/g, "")
-  const sinDigito = sinPuntos.replace(/-\d$/, "")
-  return sinDigito.replace(/\D/g, "")
+  const compacto = valor.replace(/[.\s]/g, "")
+  const sinGuion = /-\d$/.test(compacto) ? compacto.slice(0, -2) : compacto
+  return sinGuion.replace(/\D/g, "")
+}
+
+export function nitsCoinciden(a: string, b: string): boolean {
+  const na = normalizarNit(a)
+  const nb = normalizarNit(b)
+  if (!na || !nb) return false
+  if (na === nb) return true
+  const [corto, largo] = na.length < nb.length ? [na, nb] : [nb, na]
+  return largo.length === corto.length + 1 && largo.startsWith(corto) && digitoVerificacionNit(corto) === largo.at(-1)
 }
 
 const SUFIJOS = [/\s+s a s$/, /\s+s a$/, /\s+sas$/, /\s+sa$/, /\s+ltda$/, /\s+cia$/, /\s+e u$/]

@@ -17,6 +17,19 @@ describe("recorrido", () => {
     limpiar()
   })
 
+  test("dos creaciones simultáneas de la misma solicitud dejan una sola OC", async () => {
+    const { ubicacion, limpiar } = copiaFixtures()
+    const [a, b] = await Promise.all([
+      procesarCaso("sol-001", { ...ubicacion, sessionId: "a", turno: 1 }),
+      procesarCaso("sol-001", { ...ubicacion, sessionId: "b", turno: 1 }),
+    ])
+    expect(a.numero_oc).toBe(b.numero_oc)
+    expect([a.idempotente, b.idempotente].filter(Boolean)).toHaveLength(1)
+    const lineas = readFileSync(path.join(ubicacion.outDir, "sap", "ordenes.jsonl"), "utf8").trim().split("\n")
+    expect(lineas).toHaveLength(1)
+    limpiar()
+  })
+
   test("sol-004 solo se crea al consumir la confirmación", async () => {
     const { ubicacion, limpiar } = copiaFixtures()
     const pendiente = await procesarCaso("sol-004", { ...ubicacion, sessionId: "demo", turno: 1 })

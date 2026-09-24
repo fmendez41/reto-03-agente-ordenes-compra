@@ -8,47 +8,57 @@ import { truncarDescripcion } from "./unidad.ts"
 import type { OrdenCompra, Paquete, TrazaCampo, Ubicacion, Validacion } from "./types.ts"
 
 export const ordenCompraSchema = z.object({
-  referencia: z.object({
-    solicitud_id: z.string(),
-    correo_id: z.string(),
-    cotizacion_ref: z.string().nullable(),
-  }),
+  referencia: z
+    .object({
+      solicitud_id: z.string(),
+      correo_id: z.string(),
+      cotizacion_ref: z.string().nullable(),
+    })
+    .strict(),
   sociedad: z.literal("1000"),
   organizacion_compras: z.literal("1000"),
-  proveedor: z.object({
-    codigo_sap: z.string(),
-    nit: z.string(),
-    nombre: z.string(),
-  }),
+  proveedor: z
+    .object({
+      codigo_sap: z.string(),
+      nit: z.string(),
+      nombre: z.string(),
+    })
+    .strict(),
   moneda: z.enum(["COP", "USD"]),
   condiciones_pago: z.string(),
-  aprobador: z.object({
-    email: z.string(),
-    fecha_aprobacion: z.string(),
-    evidencia_sha256: z.string(),
-  }),
+  aprobador: z
+    .object({
+      email: z.string(),
+      fecha_aprobacion: z.string(),
+      evidencia_sha256: z.string(),
+    })
+    .strict(),
   posiciones: z
     .array(
-      z.object({
-        numero: z.number(),
-        descripcion: z.string().max(40),
-        cantidad: z.number(),
-        unidad: z.enum(["UN", "H", "MES"]),
-        precio_unitario: z.number(),
-        centro_costo: z.string(),
-        subarea: z.string(),
-        indicador_iva: z.string(),
-      }),
+      z
+        .object({
+          numero: z.number(),
+          descripcion: z.string().max(40),
+          cantidad: z.number(),
+          unidad: z.enum(["UN", "H", "MES"]),
+          precio_unitario: z.number(),
+          centro_costo: z.string(),
+          subarea: z.string(),
+          indicador_iva: z.string(),
+        })
+        .strict(),
     )
     .min(1),
   excepciones: z.array(
-    z.object({
-      codigo: z.string(),
-      detalle: z.string(),
-      confirmado_por: z.string().nullable(),
-    }),
+    z
+      .object({
+        codigo: z.string(),
+        detalle: z.string(),
+        confirmado_por: z.string().nullable(),
+      })
+      .strict(),
   ),
-})
+}).strict()
 
 function canonico(valor: unknown): string {
   if (Array.isArray(valor)) return `[${valor.map(canonico).join(",")}]`
@@ -129,7 +139,7 @@ export function construirOrden(
   }
   const trazas: TrazaCampo[] = [
     { campo: "referencia.solicitud_id", valor: solicitud.solicitud_id, fuente: "solicitud" },
-    { campo: "referencia.correo_id", valor: paquete.correo.id, fuente: "solicitud" },
+    { campo: "referencia.correo_id", valor: paquete.correo.id, fuente: "correo" },
     {
       campo: "referencia.cotizacion_ref",
       valor: paquete.cotizacion?.referencia ?? null,
@@ -140,8 +150,8 @@ export function construirOrden(
     { campo: "proveedor", valor: proveedor, fuente: "maestro.proveedores" },
     { campo: "moneda", valor: solicitud.moneda, fuente: "solicitud" },
     { campo: "condiciones_pago", valor: condiciones.valor, fuente: condiciones.fuente },
-    { campo: "aprobador.email", valor: paquete.aprobacion.de, fuente: "solicitud" },
-    { campo: "aprobador.fecha_aprobacion", valor: paquete.aprobacion.fecha, fuente: "solicitud" },
+    { campo: "aprobador.email", valor: paquete.aprobacion.de, fuente: "aprobacion" },
+    { campo: "aprobador.fecha_aprobacion", valor: paquete.aprobacion.fecha, fuente: "aprobacion" },
     { campo: "aprobador.evidencia_sha256", valor: evidencia.sha256, fuente: "derivado" },
     {
       campo: "posiciones[0].descripcion",

@@ -7,9 +7,9 @@
     "build": "vite build",
     "start": "bun src/server.ts",
     "demo": "bun demo.ts",
+    "estado-limpio": "bun scripts/estado-limpio.ts",
     "test": "bun test",
-    "typecheck": "tsc --noEmit",
-    "tunel": "bun scripts/tunel.ts"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "pdf-lib": "^1.17.1",
