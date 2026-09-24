@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react"
+import { analizar, type Trozo } from "../lib/markdown.ts"
 import type { Confirmacion as ConfirmacionPendiente, DetalleCaso, Mensaje } from "../tipos.ts"
 import { Confirmacion } from "./Confirmacion.tsx"
 import { Herramienta } from "./Herramienta.tsx"
@@ -7,6 +8,77 @@ const AUTORES: Record<Mensaje["autor"], string> = {
   analista: "Tú",
   agente: "Agente",
   sistema: "Aviso",
+}
+
+function Trozos({ partes }: { partes: Trozo[] }) {
+  return (
+    <>
+      {partes.map((parte, indice) => {
+        if (parte.estilo === "fuerte") return <strong key={indice}>{parte.texto}</strong>
+        if (parte.estilo === "codigo") return <code key={indice}>{parte.texto}</code>
+        return <span key={indice}>{parte.texto}</span>
+      })}
+    </>
+  )
+}
+
+/** Dibuja el markdown del agente sin pasar nunca por innerHTML: solo nodos de texto. */
+function Texto({ contenido }: { contenido: string }) {
+  return (
+    <>
+      {analizar(contenido).map((bloque, indice) => {
+        if (bloque.tipo === "parrafo") {
+          return (
+            <p key={indice}>
+              <Trozos partes={bloque.contenido} />
+            </p>
+          )
+        }
+        if (bloque.tipo === "lista") {
+          const items = bloque.items.map((item, posicion) => (
+            <li key={posicion}>
+              <Trozos partes={item} />
+            </li>
+          ))
+          return bloque.ordenada ? (
+            <ol key={indice} className="mensaje-lista">
+              {items}
+            </ol>
+          ) : (
+            <ul key={indice} className="mensaje-lista">
+              {items}
+            </ul>
+          )
+        }
+        return (
+          <div key={indice} className="mensaje-tabla-marco">
+            <table className="mensaje-tabla">
+              <thead>
+                <tr>
+                  {bloque.encabezados.map((celda, columna) => (
+                    <th key={columna}>
+                      <Trozos partes={celda} />
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {bloque.filas.map((fila, posicion) => (
+                  <tr key={posicion}>
+                    {fila.map((celda, columna) => (
+                      <td key={columna}>
+                        <Trozos partes={celda} />
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )
+      })}
+    </>
+  )
 }
 
 export function Chat({
@@ -67,9 +139,7 @@ export function Chat({
           {mensajes.map((mensaje) => (
             <article key={mensaje.id} className={`mensaje ${mensaje.autor}`}>
               <p className="mensaje-autor">{AUTORES[mensaje.autor]}</p>
-              {mensaje.texto.split("\n").map((parrafo, indice) =>
-                parrafo.trim() ? <p key={indice}>{parrafo}</p> : null,
-              )}
+              <Texto contenido={mensaje.texto} />
               {mensaje.toolCalls && mensaje.toolCalls.length > 0 ? (
                 <div className="herramientas">
                   {mensaje.toolCalls.map((llamada, indice) => (
